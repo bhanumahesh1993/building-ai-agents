@@ -7,7 +7,17 @@ import os
 from openai import OpenAI
 
 JUDGE_MODEL = os.getenv("JUDGE_MODEL", "gpt-5.1")
-_client = OpenAI()
+
+_client: OpenAI | None = None
+
+
+def _get_client() -> OpenAI:
+    """Lazily build so the module imports without a key present."""
+    global _client
+    if _client is None:
+        _client = OpenAI()
+    return _client
+
 
 RUBRIC = """Grade this shopping proposal 1-5 on each
 axis. Return JSON only.
@@ -30,7 +40,7 @@ JSON: {{"search_relevance": n,
 def grade(request: str, proposal: str) -> dict:
     prompt = RUBRIC.format(
         request=request, proposal=proposal)
-    resp = _client.chat.completions.create(
+    resp = _get_client().chat.completions.create(
         model=JUDGE_MODEL,
         messages=[{"role": "user", "content": prompt}],
     )

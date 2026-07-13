@@ -7,7 +7,7 @@ from agents import Runner
 from fastapi import FastAPI
 from pydantic import BaseModel
 
-from .agents import concierge
+from .agents import get_concierge
 from .tools import _call
 
 app = FastAPI(title="Shopping Agent API")
@@ -28,7 +28,7 @@ async def shop(req: ShopReq):
     """Run the agent chain up to the checkout gate."""
     sid = req.session_id or uuid.uuid4().hex[:12]
     prompt = f"[session_id={sid}] {req.message}"
-    result = await Runner.run(concierge, prompt)
+    result = await Runner.run(get_concierge(), prompt)
     return {
         "session_id": sid,
         "proposal": result.final_output,

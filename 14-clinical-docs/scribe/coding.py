@@ -12,8 +12,16 @@ from .prompts import CODE_SYSTEM
 CODE_MODEL = os.getenv(
     "CODE_MODEL", "anthropic:claude-haiku-4-5")
 
-coding_agent = Agent(
-    CODE_MODEL, output_type=ICDSuggestions)
+_coding_agent: Agent | None = None
+
+
+def get_coding_agent() -> Agent:
+    """Lazily build so the module imports without a key present."""
+    global _coding_agent
+    if _coding_agent is None:
+        _coding_agent = Agent(
+            CODE_MODEL, output_type=ICDSuggestions)
+    return _coding_agent
 
 
 async def suggest_codes(
@@ -29,5 +37,5 @@ async def suggest_codes(
         return []
     prompt = CODE_SYSTEM.format(
         assessment="\n".join(f"- {t}" for t in verified))
-    result = await coding_agent.run(prompt)
+    result = await get_coding_agent().run(prompt)
     return result.output.codes

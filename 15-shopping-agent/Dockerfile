@@ -8,6 +8,7 @@ ENV PYTHONUNBUFFERED=1 \
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 
+COPY catalog_server.py .
 COPY shopping ./shopping
 
 EXPOSE 8000

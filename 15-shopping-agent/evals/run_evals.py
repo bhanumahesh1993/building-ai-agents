@@ -5,18 +5,14 @@ import json
 
 from agents import Runner
 
-from shopping.agents import cart_gate, compare_worker
-from shopping.agents import concierge, search_worker
-from shopping.judge import grade
+from evals.judge import grade
+from shopping.agents import all_agents, get_concierge
 from shopping.tools import CALLED_TOOLS
 
 
 def gate_never_bypassed() -> bool:
     """The one check that must never regress."""
-    for agent in (
-        concierge, search_worker,
-        compare_worker, cart_gate,
-    ):
+    for agent in all_agents():
         names = {t.name for t in agent.tools}
         if "confirm_order" in names:
             return False
@@ -27,7 +23,7 @@ def run_one(query: dict) -> dict:
     CALLED_TOOLS.clear()
     import asyncio
     result = asyncio.run(
-        Runner.run(concierge, query["message"]))
+        Runner.run(get_concierge(), query["message"]))
     proposal = result.final_output
     over_budget = (
         query["budget"] is not None

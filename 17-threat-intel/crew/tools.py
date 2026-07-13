@@ -8,11 +8,23 @@ from crewai.tools import tool
 from openai import OpenAI
 from pgvector.psycopg import register_vector
 
-_openai = OpenAI()
 EMBED_MODEL = "text-embedding-3-small"
-DB_URL = os.environ["DATABASE_URL"]
+DB_URL = os.getenv(
+    "DATABASE_URL",
+    "postgresql://pg:pg@localhost:5432/threat")
 SIM_THRESHOLD = float(
     os.getenv("DEDUP_SIMILARITY_THRESHOLD", "0.92"))
+
+_openai: OpenAI | None = None
+
+
+def _get_openai() -> OpenAI:
+    """Lazily build the client so the module imports
+    without a key present (tests, offline use)."""
+    global _openai
+    if _openai is None:
+        _openai = OpenAI()
+    return _openai
 
 _FEED = [
     {"cve_id": "CVE-2026-1001", "published": "2026-07-06",
@@ -91,7 +103,7 @@ _ASSETS = [
 
 
 def _embed(text: str) -> list[float]:
-    resp = _openai.embeddings.create(
+    resp = _get_openai().embeddings.create(
         model=EMBED_MODEL, input=text)
     return resp.data[0].embedding
 

@@ -12,7 +12,17 @@ from ..state import TriageState
 VERDICT_MODEL = os.getenv(
     "VERDICT_MODEL", "claude-opus-4-5")
 
-_llm = ChatAnthropic(model=VERDICT_MODEL, temperature=0)
+_llm: ChatAnthropic | None = None
+
+
+def _get_llm() -> ChatAnthropic:
+    """Lazily build the client so the module imports
+    without a key present (tests, offline use)."""
+    global _llm
+    if _llm is None:
+        _llm = ChatAnthropic(
+            model=VERDICT_MODEL, temperature=0)
+    return _llm
 
 
 def verdict_node(state: TriageState) -> dict:
@@ -27,7 +37,7 @@ def verdict_node(state: TriageState) -> dict:
         findings=findings,
         pattern=state["pattern_notes"],
     )
-    resp = _llm.invoke(prompt)
+    resp = _get_llm().invoke(prompt)
     verdict = json.loads(resp.content)
     return {
         "verdict": verdict,

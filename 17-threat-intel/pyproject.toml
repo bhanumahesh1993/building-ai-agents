@@ -1,0 +1,26 @@
+[project]
+name = "threat-intel"
+version = "1.0.0"
+description = "Threat-Intel Briefing & Vuln Prioritization Crew — Building AI Agents, Project 17"
+requires-python = ">=3.11"
+dependencies = [
+    "crewai[anthropic]>=1.15,<2.0",
+    "litellm>=1.71,<2.0",
+    "fastapi>=0.118,<0.200",
+    "uvicorn[standard]>=0.35,<0.40",
+    "pydantic>=2.11,<3.0",
+    "psycopg[binary]>=3.2,<4.0",
+    "pgvector>=0.3,<0.4",
+    "openai>=2.30,<3.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "ruff>=0.6"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["crew*"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"

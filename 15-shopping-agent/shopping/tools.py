@@ -5,9 +5,14 @@ from agents import function_tool
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
+# catalog_server.py lives at the repo root (not inside the
+# shopping/ package) - see catalog_server.py's own module
+# docstring. Path is relative to the process's cwd, which is
+# the project root for both `uvicorn shopping.app:app` and the
+# Docker CMD below.
 _PARAMS = StdioServerParameters(
     command="python",
-    args=["shopping/catalog_server.py"],
+    args=["catalog_server.py"],
 )
 
 # Every MCP call an agent makes is logged here, so

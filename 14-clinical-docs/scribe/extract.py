@@ -11,8 +11,16 @@ from .prompts import EXTRACT_SYSTEM
 EXTRACT_MODEL = os.getenv(
     "EXTRACT_MODEL", "anthropic:claude-sonnet-4-5")
 
-extract_agent = Agent(
-    EXTRACT_MODEL, output_type=SOAPNote)
+_extract_agent: Agent | None = None
+
+
+def get_extract_agent() -> Agent:
+    """Lazily build so the module imports without a key present."""
+    global _extract_agent
+    if _extract_agent is None:
+        _extract_agent = Agent(
+            EXTRACT_MODEL, output_type=SOAPNote)
+    return _extract_agent
 
 
 def _numbered(transcript: str) -> str:
@@ -25,5 +33,5 @@ async def extract_note(transcript: str) -> SOAPNote:
     """Turn a visit transcript into a typed SOAP note."""
     prompt = EXTRACT_SYSTEM.format(
         transcript=_numbered(transcript))
-    result = await extract_agent.run(prompt)
+    result = await get_extract_agent().run(prompt)
     return result.output

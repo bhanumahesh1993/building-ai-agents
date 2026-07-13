@@ -92,7 +92,7 @@ def run_weekly_brief(
     spent = _usd(crew.usage_metrics)
     if spent > COST_CAP_USD:
         raise RuntimeError(
-            f"Run cost \${spent:.2f} exceeded cap "
-            f"\${COST_CAP_USD:.2f}")
+            f"Run cost ${spent:.2f} exceeded cap "
+            f"${COST_CAP_USD:.2f}")
 
     return brief_task.output.pydantic

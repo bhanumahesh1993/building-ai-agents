@@ -25,17 +25,6 @@ confirmation step is required. Never say a purchase is
 complete, an order is confirmed, or a card was charged -
 you are not able to do any of those things."""
 
-cart_gate = Agent(
-    name="Cart & Checkout Gate",
-    instructions=CART_INSTRUCTIONS,
-    tools=[
-        add_to_cart, get_cart,
-        price_cart, create_pending_order,
-    ],
-    output_guardrails=[no_claim_guardrail],
-    model=LEAD_MODEL,
-)
-
 COMPARE_INSTRUCTIONS = """You compare 2-4 candidates the
 search step found. Call get_product on each for full
 details. Weigh price, rating, and fit against the
@@ -44,27 +33,11 @@ candidate, then one clear recommendation with a short
 rationale. When the shopper picks (or you recommend) a
 product, hand off to the Cart & Checkout Gate."""
 
-compare_worker = Agent(
-    name="Comparator",
-    instructions=COMPARE_INSTRUCTIONS,
-    tools=[get_product],
-    handoffs=[handoff(cart_gate)],
-    model=LEAD_MODEL,
-)
-
 SEARCH_INSTRUCTIONS = """You find 2-4 candidate products
 matching the shopper's constraints using search_products.
 Do not recommend or compare - that is the next agent's
 job. Once you have candidates, hand off to the
 Comparator with the candidate ids."""
-
-search_worker = Agent(
-    name="Product Search",
-    instructions=SEARCH_INSTRUCTIONS,
-    tools=[search_products, get_product],
-    handoffs=[handoff(compare_worker)],
-    model=WORKER_MODEL,
-)
 
 CONCIERGE_INSTRUCTIONS = """You are the shopping
 concierge. Read the shopper's message and extract what
@@ -73,10 +46,89 @@ carry forward the session_id given in the first message
 verbatim on every downstream tool call. Once the intent
 is clear, hand off to Product Search."""
 
-concierge = Agent(
-    name="Concierge",
-    instructions=CONCIERGE_INSTRUCTIONS,
-    handoffs=[handoff(search_worker)],
-    input_guardrails=[spend_cap_guardrail],
-    model=LEAD_MODEL,
-)
+# Agents (and the OpenAI client they build under the hood) are
+# constructed lazily behind get_*() helpers so importing this
+# module - or shopping.app - never requires OPENAI_API_KEY or
+# any other env var to be set. Built in dependency order:
+# cart_gate first (leaf), then compare_worker, search_worker,
+# concierge (each hands off to the previous one).
+_cart_gate: Agent | None = None
+_compare_worker: Agent | None = None
+_search_worker: Agent | None = None
+_concierge: Agent | None = None
+
+
+def get_cart_gate() -> Agent:
+    """Lazily build so the module imports without a key present.
+
+    NOTE for reviewers of the payment-authorization gate: this
+    agent's tools list is intentionally
+    [add_to_cart, get_cart, price_cart, create_pending_order]
+    only. There is no spend/confirm tool here or anywhere else
+    in this module - see shopping/tools.py, which never wraps
+    catalog_server.confirm_order with @function_tool. The stop
+    is an absence of capability, not a prompt instruction.
+    """
+    global _cart_gate
+    if _cart_gate is None:
+        _cart_gate = Agent(
+            name="Cart & Checkout Gate",
+            instructions=CART_INSTRUCTIONS,
+            tools=[
+                add_to_cart, get_cart,
+                price_cart, create_pending_order,
+            ],
+            output_guardrails=[no_claim_guardrail],
+            model=LEAD_MODEL,
+        )
+    return _cart_gate
+
+
+def get_compare_worker() -> Agent:
+    """Lazily build so the module imports without a key present."""
+    global _compare_worker
+    if _compare_worker is None:
+        _compare_worker = Agent(
+            name="Comparator",
+            instructions=COMPARE_INSTRUCTIONS,
+            tools=[get_product],
+            handoffs=[handoff(get_cart_gate())],
+            model=LEAD_MODEL,
+        )
+    return _compare_worker
+
+
+def get_search_worker() -> Agent:
+    """Lazily build so the module imports without a key present."""
+    global _search_worker
+    if _search_worker is None:
+        _search_worker = Agent(
+            name="Product Search",
+            instructions=SEARCH_INSTRUCTIONS,
+            tools=[search_products, get_product],
+            handoffs=[handoff(get_compare_worker())],
+            model=WORKER_MODEL,
+        )
+    return _search_worker
+
+
+def get_concierge() -> Agent:
+    """Lazily build so the module imports without a key present."""
+    global _concierge
+    if _concierge is None:
+        _concierge = Agent(
+            name="Concierge",
+            instructions=CONCIERGE_INSTRUCTIONS,
+            handoffs=[handoff(get_search_worker())],
+            input_guardrails=[spend_cap_guardrail],
+            model=LEAD_MODEL,
+        )
+    return _concierge
+
+
+def all_agents() -> list[Agent]:
+    """All four agents in the chain, for gate audits/tests."""
+    return [
+        get_concierge(), get_search_worker(),
+        get_compare_worker(), get_cart_gate(),
+    ]

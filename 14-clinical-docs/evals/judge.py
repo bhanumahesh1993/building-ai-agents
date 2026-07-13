@@ -15,8 +15,17 @@ class HallucinationCheck(BaseModel):
     unsupported_examples: list[str]
 
 
-judge = Agent(
-    JUDGE_MODEL, output_type=HallucinationCheck)
+_judge_agent: Agent | None = None
+
+
+def get_judge_agent() -> Agent:
+    """Lazily build so the module imports without a key present."""
+    global _judge_agent
+    if _judge_agent is None:
+        _judge_agent = Agent(
+            JUDGE_MODEL, output_type=HallucinationCheck)
+    return _judge_agent
+
 
 RUBRIC = """You are a strict clinical-chart auditor.
 Given the transcript and the FINAL (post-verification,
@@ -39,5 +48,5 @@ async def hallucination_rate(
     prompt = RUBRIC.format(
         transcript=transcript,
         claims="\n".join(f"- {c}" for c in claims))
-    result = await judge.run(prompt)
+    result = await get_judge_agent().run(prompt)
     return result.output

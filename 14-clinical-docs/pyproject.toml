@@ -1,0 +1,24 @@
+[project]
+name = "clinical-docs"
+version = "1.0.0"
+description = "Ambient Clinical Documentation Assistant — Building AI Agents, Project 14"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.118,<0.200",
+    "uvicorn[standard]>=0.35,<0.40",
+    "pydantic>=2.11,<3.0",
+    "pydantic-ai>=2.0,<3.0",
+    "opentelemetry-sdk>=1.27,<2.0",
+    "opentelemetry-exporter-otlp-proto-http>=1.27,<2.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "ruff>=0.6"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["scribe*", "evals*"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"

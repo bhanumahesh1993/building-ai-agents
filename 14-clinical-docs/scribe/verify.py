@@ -13,7 +13,16 @@ from .prompts import VERIFY_SYSTEM
 VERIFY_MODEL = os.getenv(
     "VERIFY_MODEL", "anthropic:claude-sonnet-4-5")
 
-verify_agent = Agent(VERIFY_MODEL, output_type=FlagList)
+_verify_agent: Agent | None = None
+
+
+def get_verify_agent() -> Agent:
+    """Lazily build so the module imports without a key present."""
+    global _verify_agent
+    if _verify_agent is None:
+        _verify_agent = Agent(
+            VERIFY_MODEL, output_type=FlagList)
+    return _verify_agent
 
 SECTIONS = (
     "subjective", "objective", "assessment", "plan")
@@ -66,7 +75,7 @@ async def verify_note(
         if c.text not in already_flagged)
     prompt = VERIFY_SYSTEM.format(
         claims=claims_desc, transcript=transcript)
-    llm_result = await verify_agent.run(prompt)
+    llm_result = await get_verify_agent().run(prompt)
     all_flags = code_flags + llm_result.output.flags
     total = sum(
         len(getattr(note, s)) for s in SECTIONS)
