@@ -10,9 +10,23 @@ Full walkthrough, architecture diagrams, and design rationale are in
 ## Run it
 
 ```bash
-uv sync
+uv venv --python 3.12
+uv pip install -e ".[dev]"
 cp .env.example .env    # add your keys
-# entry point varies by project — see the book chapter's "Deployment" section
+uv run uvicorn tutor.app:app --reload --port 8000
+```
+
+Live use needs `ANTHROPIC_API_KEY` (the tutor/planner/diagnostic/evaluator
+agents and `evals/judge.py` all call `anthropic:claude-*` models via
+Pydantic AI). `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` / `LANGFUSE_HOST`
+are optional — tracing self-disables with a warning if unset. No external
+DB service is required: `tutor.db` is a local SQLite file (path
+configurable via `TUTOR_DB_PATH`).
+
+Run the offline, deterministic test suite (no keys needed) with:
+
+```bash
+uv run pytest -q
 ```
 
 ## Files

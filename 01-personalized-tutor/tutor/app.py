@@ -7,7 +7,8 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 from .agents import (
-    diagnostic_agent, evaluator_agent, planner_agent, tutor_agent,
+    get_diagnostic_agent, get_evaluator_agent, get_planner_agent,
+    get_tutor_agent,
 )
 from .guardrails import is_off_syllabus, redirect, wants_the_answer
 from .memory import (
@@ -93,7 +94,7 @@ def start(req: StartReq):
 
 async def _ask_next_question(state: dict) -> dict:
     topic = state["plan"][state["topic_idx"]]
-    turn = await tutor_agent.run(TUTOR_SYSTEM.format(
+    turn = await get_tutor_agent().run(TUTOR_SYSTEM.format(
         subject=state["subject"], topic=topic["name"],
         objective=topic["objective"], difficulty=state["difficulty"],
         recent=state["last_feedback"],
@@ -109,7 +110,7 @@ async def _ask_next_question(state: dict) -> dict:
 
 async def _advance_diagnostic(state: dict, answer_text: str) -> dict:
     probe = DIAGNOSTIC_BANK[state["probe_idx"]]
-    grade = await evaluator_agent.run(EVAL_SYSTEM.format(
+    grade = await get_evaluator_agent().run(EVAL_SYSTEM.format(
         subject=state["subject"], question=probe["question"],
         concept=probe["concept"], answer=answer_text,
     ))
@@ -128,14 +129,14 @@ async def _advance_diagnostic(state: dict, answer_text: str) -> dict:
         f"- {t['topic']}: {'correct' if t['correct'] else 'wrong'}"
         for t in state["transcript"]
     )
-    diag = await diagnostic_agent.run(DIAGNOSTIC_SYSTEM.format(
+    diag = await get_diagnostic_agent().run(DIAGNOSTIC_SYSTEM.format(
         subject=state["subject"], n=len(state["transcript"]),
         transcript=transcript_text,
     ))
     result: DiagnosticResult = diag.output
     save_diagnostic(state["student_id"], state["subject"], result)
 
-    plan_resp = await planner_agent.run(PLANNER_SYSTEM.format(
+    plan_resp = await get_planner_agent().run(PLANNER_SYSTEM.format(
         subject=state["subject"], max_topics=MAX_TOPICS,
         diagnostic=result.model_dump_json(),
     ))
@@ -157,7 +158,7 @@ async def _advance_teaching(state: dict, answer_text: str) -> dict:
         }
 
     topic = state["plan"][state["topic_idx"]]
-    grade = await evaluator_agent.run(EVAL_SYSTEM.format(
+    grade = await get_evaluator_agent().run(EVAL_SYSTEM.format(
         subject=state["subject"], question=state["last_question"],
         concept=topic["objective"], answer=answer_text,
     ))

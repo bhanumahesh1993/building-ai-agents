@@ -10,7 +10,7 @@ from langfuse import observe
 from pydantic_ai import Agent
 
 from . import charts, critic, runner, schema
-from .sql_agent import AnalystDeps, SQLQuery, agent
+from .sql_agent import AnalystDeps, SQLQuery, get_agent
 
 DB_PATH = os.getenv(
     "ANALYST_DB", "data/bikeshare.duckdb")
@@ -20,7 +20,16 @@ MAX_QUERIES = int(
 NARRATOR_MODEL = os.getenv(
     "NARRATOR_MODEL", "anthropic:claude-sonnet-4-5")
 
-narrator = Agent(NARRATOR_MODEL, output_type=str)
+_narrator: Agent[None, str] | None = None
+
+
+def _get_narrator() -> Agent[None, str]:
+    """Lazily build the narrator so the module imports
+    without a key present (tests, offline use)."""
+    global _narrator
+    if _narrator is None:
+        _narrator = Agent(NARRATOR_MODEL, output_type=str)
+    return _narrator
 
 NARRATE_SYSTEM = """Narrate this data result in 2-3
 plain sentences. State only what the numbers show.
@@ -56,7 +65,7 @@ def run_pipeline(
         prompt = question if error is None else (
             f"That query failed with: {error}\n"
             "Write a corrected SELECT.")
-        result = agent.run_sync(
+        result = get_agent().run_sync(
             prompt, deps=deps, message_history=messages)
         query = result.output
         messages = result.new_messages()
@@ -79,7 +88,7 @@ def run_pipeline(
 def narrate(question: str, pr: PipelineResult) -> str:
     if pr.query is None:
         return "I could not draft a safe query for that."
-    prose = narrator.run_sync(NARRATE_SYSTEM.format(
+    prose = _get_narrator().run_sync(NARRATE_SYSTEM.format(
         question=question,
         result=pr.df.head(10).to_string(index=False)
         if not pr.df.empty else "(no rows)",

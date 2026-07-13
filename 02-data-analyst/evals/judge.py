@@ -10,7 +10,16 @@ from pydantic_ai import Agent
 JUDGE_MODEL = os.getenv(
     "JUDGE_MODEL", "anthropic:claude-opus-4-5")
 
-judge = Agent(JUDGE_MODEL, output_type=dict)
+_judge: Agent[None, dict] | None = None
+
+
+def _get_judge() -> Agent[None, dict]:
+    """Lazily build the judge so the module imports
+    without a key present (tests, offline use)."""
+    global _judge
+    if _judge is None:
+        _judge = Agent(JUDGE_MODEL, output_type=dict)
+    return _judge
 
 FAITHFULNESS = """Grade whether NARRATION is faithful
 to RESULT. Score 1-5 (5 = fully faithful and honest
@@ -51,4 +60,4 @@ def faithfulness(
     prompt = FAITHFULNESS.format(
         result=result.head(10).to_string(index=False),
         narration=narration)
-    return judge.run_sync(prompt).output
+    return _get_judge().run_sync(prompt).output

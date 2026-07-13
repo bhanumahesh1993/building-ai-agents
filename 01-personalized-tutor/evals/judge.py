@@ -16,7 +16,15 @@ class SocraticScore(BaseModel):
     notes: str
 
 
-_judge = Agent(JUDGE_MODEL, output_type=SocraticScore)
+_judge: Agent | None = None
+
+
+def _get_judge() -> Agent:
+    """Lazily build so the module imports without a key present."""
+    global _judge
+    if _judge is None:
+        _judge = Agent(JUDGE_MODEL, output_type=SocraticScore)
+    return _judge
 
 RUBRIC = """Grade one tutoring exchange on three 1-5
 axes (5 best):
@@ -41,5 +49,5 @@ async def grade(
         subject=subject, prior_answer=prior_answer,
         tutor_question=tutor_question,
     )
-    result = await _judge.run(prompt)
+    result = await _get_judge().run(prompt)
     return result.output

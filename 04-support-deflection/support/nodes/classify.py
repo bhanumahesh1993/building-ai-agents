@@ -16,8 +16,18 @@ CATEGORIES = (
     "bug", "feature_request", "abuse",
 )
 
-_llm = ChatAnthropic(
-    model=CLASSIFY_MODEL, temperature=0)
+_llm: ChatAnthropic | None = None
+
+
+def _get_llm() -> ChatAnthropic:
+    """Lazily build the client so the module imports
+    without a key present (tests, offline use)."""
+    global _llm
+    if _llm is None:
+        _llm = ChatAnthropic(
+            model=CLASSIFY_MODEL, temperature=0)
+    return _llm
+
 
 SYSTEM = """Classify this Notewise support message
 into exactly one category: {cats}.
@@ -38,7 +48,7 @@ def classify_node(state: TicketState) -> dict:
         cats=", ".join(CATEGORIES),
         message=state["message"],
     )
-    resp = _llm.invoke(prompt)
+    resp = _get_llm().invoke(prompt)
     raw = json.loads(resp.content)
     cat = raw["category"]
     if cat not in CATEGORIES:

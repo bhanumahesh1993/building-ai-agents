@@ -66,14 +66,23 @@ schema, say so in `intent` and return
 Schema:
 {schema}"""
 
-agent = Agent(
-    MODEL,
-    output_type=SQLQuery,
-    deps_type=AnalystDeps,
-)
+_agent: Agent[AnalystDeps, SQLQuery] | None = None
 
 
-@agent.system_prompt
-def build_prompt(
-        ctx: RunContext[AnalystDeps]) -> str:
-    return SYSTEM.format(schema=ctx.deps.schema_context)
+def get_agent() -> Agent[AnalystDeps, SQLQuery]:
+    """Lazily build the agent so the module imports
+    without a key present (tests, offline use)."""
+    global _agent
+    if _agent is None:
+        _agent = Agent(
+            MODEL,
+            output_type=SQLQuery,
+            deps_type=AnalystDeps,
+        )
+
+        @_agent.system_prompt
+        def build_prompt(
+                ctx: RunContext[AnalystDeps]) -> str:
+            return SYSTEM.format(
+                schema=ctx.deps.schema_context)
+    return _agent

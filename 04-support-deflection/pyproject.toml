@@ -1,0 +1,30 @@
+[project]
+name = "support-deflection"
+version = "1.0.0"
+description = "Tier-1 Support Deflection System — Building AI Agents, Project 4"
+requires-python = ">=3.11"
+dependencies = [
+    "langgraph>=1.0,<2.0",
+    "langchain-core>=1.0,<2.0",
+    "langchain-anthropic>=1.0,<2.0",
+    "langchain>=1.0,<2.0",
+    "langfuse>=3.0,<4.0",
+    "fastapi>=0.118,<0.200",
+    "uvicorn[standard]>=0.35,<0.40",
+    "pydantic>=2.11,<3.0",
+    "psycopg[binary]>=3.2,<4.0",
+    "pgvector>=0.3,<0.4",
+    "openai>=1.50,<2.0",
+    "mcp>=1.0,<2.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "ruff>=0.6"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["support*"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"

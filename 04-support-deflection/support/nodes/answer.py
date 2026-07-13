@@ -11,8 +11,18 @@ from ..state import TicketState
 ANSWER_MODEL = os.getenv(
     "ANSWER_MODEL", "claude-sonnet-4-5")
 
-_llm = ChatAnthropic(
-    model=ANSWER_MODEL, temperature=0)
+_llm: ChatAnthropic | None = None
+
+
+def _get_llm() -> ChatAnthropic:
+    """Lazily build the client so the module imports
+    without a key present (tests, offline use)."""
+    global _llm
+    if _llm is None:
+        _llm = ChatAnthropic(
+            model=ANSWER_MODEL, temperature=0)
+    return _llm
+
 
 SYSTEM = """You are Notewise's tier-1 support agent.
 Answer the customer using ONLY the numbered KB
@@ -52,7 +62,7 @@ def answer_node(state: TicketState) -> dict:
         message=state["message"],
         context=_format_context(hits),
     )
-    resp = _llm.invoke(prompt)
+    resp = _get_llm().invoke(prompt)
     raw = json.loads(resp.content)
     urls = [
         hits[int(n) - 1]["url"]

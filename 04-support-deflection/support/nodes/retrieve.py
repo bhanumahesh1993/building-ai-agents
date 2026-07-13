@@ -8,10 +8,25 @@ from openai import OpenAI
 
 from ..state import TicketState
 
-DB_URL = os.environ["DATABASE_URL"]
 EMBED_MODEL = "text-embedding-3-small"
 
-_client = OpenAI()
+_client: OpenAI | None = None
+
+
+def _get_client() -> OpenAI:
+    """Lazily build the client so the module imports
+    without a key present (tests, offline use)."""
+    global _client
+    if _client is None:
+        _client = OpenAI()
+    return _client
+
+
+def _get_db_url() -> str:
+    """Read the DB URL lazily so import doesn't require
+    it to be set (tests, offline use)."""
+    return os.environ["DATABASE_URL"]
+
 
 RRF_SQL = """
 WITH vec AS (
@@ -44,7 +59,7 @@ LIMIT %(k)s;
 
 def embed(text: str) -> list[float]:
     """Embed with the same model ingest.py used."""
-    resp = _client.embeddings.create(
+    resp = _get_client().embeddings.create(
         model=EMBED_MODEL, input=text)
     return resp.data[0].embedding
 
@@ -52,7 +67,7 @@ def embed(text: str) -> list[float]:
 def retrieve_node(state: TicketState) -> dict:
     """Hybrid (vector + keyword) search over the KB."""
     qvec = embed(state["message"])
-    with psycopg.connect(DB_URL) as conn:
+    with psycopg.connect(_get_db_url()) as conn:
         rows = conn.execute(RRF_SQL, {
             "qvec": qvec,
             "text": state["message"],

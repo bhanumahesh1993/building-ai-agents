@@ -13,7 +13,17 @@ DB_URL = "postgresql://localhost/notewise_kb"
 KB_DIR = pathlib.Path("kb")
 EMBED_MODEL = "text-embedding-3-small"
 
-client = OpenAI()
+_client: OpenAI | None = None
+
+
+def _get_client() -> OpenAI:
+    """Lazily build the client so the module imports
+    without a key present (tests, offline use)."""
+    global _client
+    if _client is None:
+        _client = OpenAI()
+    return _client
+
 
 SCHEMA = """
 CREATE EXTENSION IF NOT EXISTS vector;
@@ -32,7 +42,7 @@ CREATE TABLE IF NOT EXISTS kb_chunks (
 
 
 def embed(text: str) -> list[float]:
-    resp = client.embeddings.create(
+    resp = _get_client().embeddings.create(
         model=EMBED_MODEL, input=text)
     return resp.data[0].embedding
 

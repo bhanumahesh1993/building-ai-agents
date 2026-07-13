@@ -15,8 +15,18 @@ from ..state import TicketState
 ESCALATE_MODEL = os.getenv(
     "ESCALATE_MODEL", "claude-sonnet-4-5")
 
-_llm = ChatAnthropic(
-    model=ESCALATE_MODEL, temperature=0)
+_llm: ChatAnthropic | None = None
+
+
+def _get_llm() -> ChatAnthropic:
+    """Lazily build the client so the module imports
+    without a key present (tests, offline use)."""
+    global _llm
+    if _llm is None:
+        _llm = ChatAnthropic(
+            model=ESCALATE_MODEL, temperature=0)
+    return _llm
+
 
 SUMMARY_SYSTEM = """Summarize this ticket for a human
 agent taking over. Be factual and brief.
@@ -54,7 +64,7 @@ def escalate_node(state: TicketState) -> dict:
         message=state["message"],
         tried=tried or "none",
     )
-    resp = _llm.invoke(prompt)
+    resp = _get_llm().invoke(prompt)
     draft = json.loads(resp.content)
 
     # Human-in-the-loop: a support lead reviews the
