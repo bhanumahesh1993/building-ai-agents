@@ -1,0 +1,9 @@
+# requirements.txt (illustrative pins)
+pydantic-ai==2.1.0
+pydantic==2.11.0
+duckdb==1.2.1
+pandas==2.2.3
+matplotlib==3.9.2
+langfuse==3.6.0
+python-dotenv==1.0.1
+pytest==8.3.3

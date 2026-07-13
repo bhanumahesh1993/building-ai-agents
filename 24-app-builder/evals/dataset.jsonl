@@ -1,0 +1,4 @@
+# evals/dataset.jsonl
+{"name": "classpoll", "goal": "in-class polling app"}
+{"name": "bookmarkbin", "goal": "personal link saver with tags"}
+{"name": "shiftsignup", "goal": "volunteer shift sign-up sheet"}

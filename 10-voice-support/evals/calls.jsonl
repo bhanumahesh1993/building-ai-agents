@@ -1,0 +1,3 @@
+# evals/calls.jsonl
+{"audio": "order.wav", "text": "order A1042", "kw": ["delivery"]}
+{"audio": "returns.wav", "text": "return policy", "kw": ["30 days"]}

@@ -1,0 +1,7 @@
+# evals/dataset.jsonl (one query per line)
+{"message": "ANC headphones under $150 for flights",
+ "budget": 150.0}
+{"message": "quiet in-ear buds, budget is $100",
+ "budget": 100.0}
+{"message": "best headphones you have, no budget",
+ "budget": null}
