@@ -9,16 +9,25 @@ from workflows import Workflow, step, Context
 from workflows.events import (
     Event, StartEvent, StopEvent)
 
-from index import PgVectorStore
-from rerank import rerank
-from synthesize import answer_with_citations
-from citations import check
+from .index import PgVectorStore
+from .rerank import rerank
+from .synthesize import answer_with_citations
+from .citations import check
 
 ANALYZE_MODEL = os.getenv(
     "ANALYZE_MODEL", "claude-haiku-4-5")
 MAX_LOOPS = int(os.getenv("MAX_LOOPS", "2"))
 
-_client = Anthropic()
+_client: Anthropic | None = None
+
+
+def _get_client() -> Anthropic:
+    """Lazily build the client so the module imports
+    without a key present (tests, offline use)."""
+    global _client
+    if _client is None:
+        _client = Anthropic()
+    return _client
 
 ANALYZE_PROMPT = """Break this question into 1-4
 independent, searchable sub-questions. A simple
@@ -60,7 +69,7 @@ class RAGWorkflow(Workflow):
         await ctx.store.set("acl", ev.acl)
         prompt = ANALYZE_PROMPT.format(
             question=ev.question)
-        resp = _client.messages.create(
+        resp = _get_client().messages.create(
             model=ANALYZE_MODEL, max_tokens=300,
             messages=[
                 {"role": "user", "content": prompt}],

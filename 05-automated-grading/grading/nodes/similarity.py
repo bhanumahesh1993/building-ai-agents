@@ -13,12 +13,21 @@ EMBED_MODEL = os.getenv("EMBED_MODEL", "voyage-3.5")
 FLAG_THRESHOLD = float(
     os.getenv("SIM_THRESHOLD", "0.86"))
 
-_vo = voyageai.Client(
-    api_key=os.environ["VOYAGE_API_KEY"])
+_vo: voyageai.Client | None = None
+
+
+def _get_client() -> voyageai.Client:
+    """Lazily build so the module imports without a key present
+    (tests, offline use)."""
+    global _vo
+    if _vo is None:
+        _vo = voyageai.Client(
+            api_key=os.environ["VOYAGE_API_KEY"])
+    return _vo
 
 
 def _embed(texts: list[str]) -> list[list[float]]:
-    resp = _vo.embed(
+    resp = _get_client().embed(
         texts, model=EMBED_MODEL, input_type="document")
     return resp.embeddings
 

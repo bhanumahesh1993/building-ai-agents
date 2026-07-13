@@ -10,8 +10,17 @@ from ..state import FeedbackWorkerState
 FEEDBACK_MODEL = os.getenv(
     "FEEDBACK_MODEL", "claude-sonnet-4-5")
 
-_llm = ChatAnthropic(
-    model=FEEDBACK_MODEL, temperature=0.3)
+_llm: ChatAnthropic | None = None
+
+
+def _get_llm() -> ChatAnthropic:
+    """Lazily build so the module imports without a key present."""
+    global _llm
+    if _llm is None:
+        _llm = ChatAnthropic(
+            model=FEEDBACK_MODEL, temperature=0.3)
+    return _llm
+
 
 FEEDBACK_SYSTEM = """You are writing feedback directly
 to a student, using their rubric scores below. Write
@@ -40,7 +49,7 @@ def feedback_node(state: FeedbackWorkerState) -> dict:
         scores=g["scores"],
         essay=g["text"],
     )
-    resp = _llm.invoke(prompt)
+    resp = _get_llm().invoke(prompt)
     updated = {**g, "feedback": resp.content,
                "status": "drafted"}
     return {"graded": [updated]}

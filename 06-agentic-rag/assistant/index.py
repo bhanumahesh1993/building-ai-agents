@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from ingest import embed
+from .ingest import embed
 
 RRF_K = 60  # standard smoothing constant
 
@@ -15,6 +15,35 @@ class VectorStore(Protocol):
         self, query: str, k: int, acl: list[str],
     ) -> list[dict]:
         ...
+
+
+def rrf_fuse(
+    vector_ranked: list[str],
+    keyword_ranked: list[str],
+    k: int = 20,
+    rrf_k: int = RRF_K,
+) -> list[tuple[str, float]]:
+    """Pure reciprocal-rank fusion, mirroring the SQL
+    CTE above so the scoring math is unit-testable
+    without a live Postgres connection.
+
+    ``vector_ranked`` / ``keyword_ranked`` are chunk ids
+    in descending relevance order from each retriever.
+    Returns (id, score) pairs sorted by fused score.
+    """
+    vec_rank = {
+        cid: i + 1 for i, cid in enumerate(vector_ranked)}
+    kw_rank = {
+        cid: i + 1 for i, cid in enumerate(keyword_ranked)}
+    ids = set(vec_rank) | set(kw_rank)
+    scored = [
+        (cid,
+         1.0 / (rrf_k + vec_rank.get(cid, 999))
+         + 1.0 / (rrf_k + kw_rank.get(cid, 999)))
+        for cid in ids
+    ]
+    scored.sort(key=lambda pair: pair[1], reverse=True)
+    return scored[:k]
 
 
 class PgVectorStore:

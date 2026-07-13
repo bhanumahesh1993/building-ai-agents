@@ -12,7 +12,16 @@ from ..state import EssayWorkerState
 SCORE_MODEL = os.getenv(
     "SCORE_MODEL", "claude-opus-4-5")
 
-_llm = ChatAnthropic(model=SCORE_MODEL, temperature=0)
+_llm: ChatAnthropic | None = None
+
+
+def _get_llm() -> ChatAnthropic:
+    """Lazily build so the module imports without a key present."""
+    global _llm
+    if _llm is None:
+        _llm = ChatAnthropic(model=SCORE_MODEL, temperature=0)
+    return _llm
+
 
 SCORE_SYSTEM = """You are a rubric scorer. Score ONE
 student essay against the rubric below. For every
@@ -48,7 +57,7 @@ def _score_one(prompt: str, essay: str) -> dict:
         rubric=rubric_block(RUBRIC),
         essay=essay,
     )
-    resp = _llm.invoke(text)
+    resp = _get_llm().invoke(text)
     return json.loads(resp.content)
 
 

@@ -8,7 +8,16 @@ import cohere
 RERANK_MODEL = os.getenv(
     "RERANK_MODEL", "rerank-v3.5")
 
-_co = cohere.Client(os.environ["COHERE_API_KEY"])
+_co: cohere.Client | None = None
+
+
+def _get_client() -> cohere.Client:
+    """Lazily build the client so the module imports
+    without a key present (tests, offline use)."""
+    global _co
+    if _co is None:
+        _co = cohere.Client(os.environ["COHERE_API_KEY"])
+    return _co
 
 
 def rerank(
@@ -18,7 +27,7 @@ def rerank(
     if not candidates:
         return []
     docs = [c["body"] for c in candidates]
-    resp = _co.rerank(
+    resp = _get_client().rerank(
         model=RERANK_MODEL, query=query,
         documents=docs,
         top_n=min(k, len(docs)))

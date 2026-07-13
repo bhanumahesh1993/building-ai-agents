@@ -12,8 +12,16 @@ from ..state import VerifierState
 VERIFIER_MODEL = os.getenv(
     "VERIFIER_MODEL", "claude-opus-4-5")
 
-_llm = ChatAnthropic(
-    model=VERIFIER_MODEL, temperature=0)
+_llm: ChatAnthropic | None = None
+
+
+def _get_llm() -> ChatAnthropic:
+    """Lazily build so the module imports without a key present."""
+    global _llm
+    if _llm is None:
+        _llm = ChatAnthropic(
+            model=VERIFIER_MODEL, temperature=0)
+    return _llm
 
 
 def verify_node(state: VerifierState) -> dict:
@@ -22,7 +30,7 @@ def verify_node(state: VerifierState) -> dict:
     prompt = VERIFY_SYSTEM.format(
         finding=json.dumps(finding),
         context=state["context"] or "(no context)")
-    resp = _llm.invoke(prompt)
+    resp = _get_llm().invoke(prompt)
     raw = json.loads(resp.content)
     verified = {
         "finding": finding,

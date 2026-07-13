@@ -10,22 +10,40 @@ Full walkthrough, architecture diagrams, and design rationale are in
 ## Run it
 
 ```bash
-uv sync
+uv venv --python 3.12
+uv pip install -e ".[dev]"
 cp .env.example .env    # add your keys
-# entry point varies by project — see the book chapter's "Deployment" section
+uv run uvicorn review.app:app --reload
 ```
+
+No API key or running service is needed to import the package or run its
+deterministic test suite:
+
+```bash
+uv run --no-project pytest -q
+```
+
+`ANTHROPIC_API_KEY` is only required at call time (`review.nodes.reviewers`,
+`review.nodes.verify`) — the `ChatAnthropic` clients are built lazily behind
+`_get_llm()` on first use, so every module imports cleanly without it.
+`LANGFUSE_*` keys are optional and only needed if you want tracing sent to
+Langfuse; without them the callback handler self-disables with a warning.
 
 ## Files
 
 - `.env.example`
+- `.python-version`
 - `Dockerfile`
 - `docker-compose.yml`
 - `evals/run_evals.py`
+- `pyproject.toml`
 - `requirements.txt`
+- `review/__init__.py`
 - `review/app.py`
 - `review/diff_utils.py`
 - `review/github_stub.py`
 - `review/graph.py`
+- `review/nodes/__init__.py`
 - `review/nodes/consolidate.py`
 - `review/nodes/gate.py`
 - `review/nodes/gather.py`
@@ -33,6 +51,14 @@ cp .env.example .env    # add your keys
 - `review/nodes/verify.py`
 - `review/prompts.py`
 - `review/state.py`
+- `tests/__init__.py`
+- `tests/fixtures.py`
+- `tests/test_consolidate.py`
+- `tests/test_diff_utils.py`
+- `tests/test_gate.py`
+- `tests/test_graph_pipeline.py`
+- `tests/test_live_smoke.py`
+- `uv.lock`
 
 ## Safety
 

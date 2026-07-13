@@ -8,7 +8,17 @@ from anthropic import Anthropic
 SYNTH_MODEL = os.getenv(
     "SYNTH_MODEL", "claude-sonnet-4-5")
 
-_client = Anthropic()
+_client: Anthropic | None = None
+
+
+def _get_client() -> Anthropic:
+    """Lazily build the client so the module imports
+    without a key present (tests, offline use)."""
+    global _client
+    if _client is None:
+        _client = Anthropic()
+    return _client
+
 
 SYNTH_PROMPT = """Answer using ONLY the numbered
 sources below. Cite every non-obvious claim inline
@@ -37,7 +47,7 @@ def answer_with_citations(
     sources = _source_block(chunks)
     prompt = SYNTH_PROMPT.format(
         question=question, sources=sources)
-    resp = _client.messages.create(
+    resp = _get_client().messages.create(
         model=SYNTH_MODEL, max_tokens=900,
         messages=[
             {"role": "user", "content": prompt}],

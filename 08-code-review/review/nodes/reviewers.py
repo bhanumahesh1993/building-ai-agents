@@ -26,8 +26,16 @@ PROMPTS = {
     "style": STYLE_SYSTEM,
 }
 
-_llm = ChatAnthropic(
-    model=REVIEWER_MODEL, temperature=0)
+_llm: ChatAnthropic | None = None
+
+
+def _get_llm() -> ChatAnthropic:
+    """Lazily build so the module imports without a key present."""
+    global _llm
+    if _llm is None:
+        _llm = ChatAnthropic(
+            model=REVIEWER_MODEL, temperature=0)
+    return _llm
 
 
 def review_node(state: ReviewerState) -> dict:
@@ -35,7 +43,7 @@ def review_node(state: ReviewerState) -> dict:
     role = state["role"]
     prompt = PROMPTS[role].format(
         diff=render_hunks(state["hunks"]))
-    resp = _llm.invoke(prompt)
+    resp = _get_llm().invoke(prompt)
     raw = json.loads(resp.content)
     items = raw.get("findings", [])
     findings = []

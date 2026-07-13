@@ -10,25 +10,48 @@ Full walkthrough, architecture diagrams, and design rationale are in
 ## Run it
 
 ```bash
-uv sync
+uv venv --python 3.12
+uv pip install -e ".[dev]"
 cp .env.example .env    # add your keys
 # entry point varies by project — see the book chapter's "Deployment" section
+uv run --no-project pytest -q
 ```
+
+This project needs, for live (non-test) use:
+
+- **Postgres + pgvector** (`docker-compose up db`, the default `PgVectorStore`
+  backend) **or** a running **Qdrant** instance (`QDRANT_URL` /
+  `QDRANT_API_KEY`, the `QdrantStore` backend) — set `DATABASE_URL` in `.env`
+  for the pgvector path.
+- An embedding + LLM key: `OPENAI_API_KEY` (embeddings), `ANTHROPIC_API_KEY`
+  (query analysis, synthesis, citation self-check), and `COHERE_API_KEY`
+  (reranking). Every client that needs one of these is built lazily on first
+  use, so the whole package still imports and its offline test suite still
+  passes with no environment variables set at all.
+
+Note: `llama-index-core`, `llama-index-workflows`, and
+`openinference-instrumentation-llama-index` all installed cleanly against
+Python 3.12 during hardening — no compatibility issues were found.
 
 ## Files
 
 - `.env.example`
 - `Dockerfile`
-- `app.py`
-- `citations.py`
+- `assistant/app.py`
+- `assistant/citations.py`
+- `assistant/index.py`
+- `assistant/ingest.py`
+- `assistant/rerank.py`
+- `assistant/synthesize.py`
+- `assistant/workflow.py`
 - `docker-compose.yml`
 - `evals/run_evals.py`
-- `index.py`
-- `ingest.py`
+- `pyproject.toml`
 - `requirements.txt`
-- `rerank.py`
-- `synthesize.py`
-- `workflow.py`
+- `tests/test_citations.py`
+- `tests/test_index.py`
+- `tests/test_ingest.py`
+- `uv.lock`
 
 ## Safety
 
