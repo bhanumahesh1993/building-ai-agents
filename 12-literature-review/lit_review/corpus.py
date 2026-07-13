@@ -9,13 +9,18 @@ from sklearn.cluster import KMeans
 
 from .tools import embed_text
 
-DB_URL = os.environ["DATABASE_URL"]
 EMBED_DIM = 768
 N_CLUSTERS = int(os.getenv("MAX_CLUSTERS", "8"))
 
 
+def _get_db_url() -> str:
+    """Read the DB URL at call time, not import time, so the
+    module imports without a key present (tests, offline use)."""
+    return os.environ["DATABASE_URL"]
+
+
 def _conn():
-    conn = psycopg.connect(DB_URL, autocommit=True)
+    conn = psycopg.connect(_get_db_url(), autocommit=True)
     register_vector(conn)
     return conn
 

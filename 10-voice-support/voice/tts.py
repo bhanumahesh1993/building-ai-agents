@@ -6,17 +6,23 @@ from collections.abc import Iterator
 
 import httpx
 
-TTS_API_KEY = os.environ["TTS_API_KEY"]
-TTS_VOICE = os.getenv("TTS_VOICE", "aria")
-TTS_URL = (
-    "https://api.elevenlabs.io/v1/text-to-speech/"
-    f"{TTS_VOICE}/stream")
+
+def _get_config() -> tuple[str, str]:
+    """Lazily read the API key and build the URL so the
+    module imports without a key present (tests, offline use)."""
+    api_key = os.environ["TTS_API_KEY"]
+    voice = os.getenv("TTS_VOICE", "aria")
+    url = (
+        "https://api.elevenlabs.io/v1/text-to-speech/"
+        f"{voice}/stream")
+    return api_key, url
 
 
 def synthesize(text: str) -> Iterator[bytes]:
     """Stream PCM16 audio chunks for one sentence."""
+    api_key, tts_url = _get_config()
     headers = {
-        "xi-api-key": TTS_API_KEY,
+        "xi-api-key": api_key,
         "accept": "audio/pcm",
     }
     payload = {
@@ -25,7 +31,7 @@ def synthesize(text: str) -> Iterator[bytes]:
         "output_format": "pcm_16000",
     }
     with httpx.stream(
-        "POST", TTS_URL, headers=headers,
+        "POST", tts_url, headers=headers,
         json=payload, timeout=10.0,
     ) as resp:
         resp.raise_for_status()

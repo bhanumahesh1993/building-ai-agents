@@ -11,16 +11,30 @@ from psycopg.rows import dict_row
 from ..fetch_tool import fetch_page
 from ..state import WorkerState
 
-DB_URL = os.environ["DATABASE_URL"]
 EMBED_MODEL = os.getenv(
     "EMBED_MODEL", "voyage-3.5")
 
-_client = anthropic.Anthropic()
+_client: anthropic.Anthropic | None = None
+
+
+def _get_client() -> anthropic.Anthropic:
+    """Lazily build the embedding client so the module
+    imports without a key present (tests, offline use)."""
+    global _client
+    if _client is None:
+        _client = anthropic.Anthropic()
+    return _client
+
+
+def _get_db_url() -> str:
+    """Read the connection string lazily so importing
+    this module never requires DATABASE_URL to be set."""
+    return os.environ["DATABASE_URL"]
 
 
 def _embed(text: str) -> list[float]:
     """Embed cleaned page text via the Voyage API."""
-    resp = _client.embeddings.create(
+    resp = _get_client().embeddings.create(
         model=EMBED_MODEL,
         input=text[:8000],
     )
@@ -28,7 +42,7 @@ def _embed(text: str) -> list[float]:
 
 
 def _last_snapshot(url: str) -> dict | None:
-    with psycopg.connect(DB_URL, row_factory=dict_row) as conn:
+    with psycopg.connect(_get_db_url(), row_factory=dict_row) as conn:
         row = conn.execute(
             """SELECT text, embedding FROM snapshots
                WHERE url = %s
@@ -41,7 +55,7 @@ def _last_snapshot(url: str) -> dict | None:
 def _store_snapshot(
         url: str, competitor: str, kind: str,
         text: str, embedding: list[float]) -> None:
-    with psycopg.connect(DB_URL) as conn:
+    with psycopg.connect(_get_db_url()) as conn:
         conn.execute(
             """INSERT INTO snapshots
                (url, competitor, kind, text,

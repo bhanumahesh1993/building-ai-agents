@@ -1,0 +1,27 @@
+[project]
+name = "literature-review"
+version = "1.0.0"
+description = "Scientific Literature Review Agent — Building AI Agents, Project 12"
+requires-python = ">=3.11"
+dependencies = [
+    "google-adk>=2.4,<3.0",
+    "google-genai>=2.11,<3.0",
+    "fastapi>=0.139,<0.200",
+    "uvicorn[standard]>=0.51,<0.60",
+    "pydantic>=2.13,<3.0",
+    "langfuse>=4.14,<5.0",
+    "psycopg[binary]>=3.3,<4.0",
+    "pgvector>=0.5,<0.6",
+    "scikit-learn>=1.9,<2.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "ruff>=0.6"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["lit_review*"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"

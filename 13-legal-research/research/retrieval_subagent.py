@@ -4,8 +4,6 @@ from __future__ import annotations
 import json
 import os
 
-from claude_agent_sdk import query, ClaudeAgentOptions
-
 from .corpus import search_cases
 from .embeddings import embed
 from .prompts import RETRIEVAL_SYSTEM
@@ -19,6 +17,11 @@ FALLBACK = os.getenv(
 async def research_issue(
     issue: dict, jurisdiction: str) -> dict:
     """One subagent: retrieve, then distil, one issue."""
+    # Imported lazily so this module can be imported
+    # without claude-agent-sdk installed or any
+    # credentials present.
+    from claude_agent_sdk import query, ClaudeAgentOptions
+
     vec = embed(issue["question"])
     hits = search_cases(vec, jurisdiction, k=6)
     context = "\n\n".join(

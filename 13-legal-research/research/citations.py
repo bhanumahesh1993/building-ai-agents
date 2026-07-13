@@ -4,8 +4,6 @@ from __future__ import annotations
 import json
 import os
 
-from claude_agent_sdk import query, ClaudeAgentOptions
-
 from .corpus import case_exists, case_full_text
 from .prompts import CITE_VERIFY_SYSTEM
 
@@ -13,8 +11,21 @@ JUDGE_MODEL = os.getenv(
     "JUDGE_MODEL", "claude-opus-4-8")
 
 
+def _parse_judge_response(text: str) -> bool:
+    """Pure parsing/decision logic for the tier-2 judge
+    reply. Factored out so the critical verify-or-strip
+    path can be unit-tested without the Claude Agent SDK
+    or any live model call."""
+    return bool(json.loads(text)["supported"])
+
+
 async def _tier2_supports(claim: str, case_id: str) -> bool:
     """Does the case's actual text support this claim?"""
+    # Imported lazily so this module (and the pure
+    # verify-or-strip logic below) can be imported and
+    # tested even when claude-agent-sdk is not installed.
+    from claude_agent_sdk import query, ClaudeAgentOptions
+
     full_text = case_full_text(case_id)
     prompt = CITE_VERIFY_SYSTEM.format(
         claim=claim, case_text=full_text[:6000],
@@ -29,7 +40,7 @@ async def _tier2_supports(claim: str, case_id: str) -> bool:
             for block in msg.content:
                 if hasattr(block, "text"):
                     text += block.text
-    return json.loads(text)["supported"]
+    return _parse_judge_response(text)
 
 
 async def verify_citations(cites: list[dict]) -> list[dict]:

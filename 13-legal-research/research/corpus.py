@@ -6,11 +6,15 @@ import os
 import psycopg
 from psycopg.rows import dict_row
 
-DB_URL = os.environ["CASE_DB_URL"]
+
+def _get_db_url() -> str:
+    """Read lazily so the module imports without the
+    env var present (tests, offline use)."""
+    return os.environ["CASE_DB_URL"]
 
 
 def _conn():
-    return psycopg.connect(DB_URL, row_factory=dict_row)
+    return psycopg.connect(_get_db_url(), row_factory=dict_row)
 
 
 def search_cases(

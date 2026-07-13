@@ -1,0 +1,8 @@
+# requirements.txt (illustrative pins)
+anthropic==0.44.0
+fastapi==0.118.0
+uvicorn[standard]==0.35.0
+httpx==0.28.1
+numpy==2.1.3
+webrtcvad==2.0.10
+faster-whisper==1.1.0

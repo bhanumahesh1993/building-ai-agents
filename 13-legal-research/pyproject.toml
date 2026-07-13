@@ -1,0 +1,26 @@
+[project]
+name = "legal-research"
+version = "1.0.0"
+description = "Legal Research Deep-Dive Agent — Building AI Agents, Project 13"
+requires-python = ">=3.11"
+dependencies = [
+    "claude-agent-sdk>=0.1,<1.0",
+    "anyio>=4.7,<5.0",
+    "psycopg[binary]>=3.2,<4.0",
+    "openai>=1.58,<2.0",
+    "fastapi>=0.118,<0.200",
+    "uvicorn[standard]>=0.35,<0.40",
+    "pydantic>=2.11,<3.0",
+    "langfuse>=3.6,<4.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "ruff>=0.6"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["research*"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"

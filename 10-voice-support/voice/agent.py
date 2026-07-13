@@ -18,8 +18,17 @@ answer; never guess an order status or a policy.
 If you are not confident, say so and offer a human
 transfer instead of inventing an answer."""
 
-_client = anthropic.Anthropic()
+_client: anthropic.Anthropic | None = None
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+")
+
+
+def _get_client() -> anthropic.Anthropic:
+    """Lazily build the client so the module imports
+    without a key present (tests, offline use)."""
+    global _client
+    if _client is None:
+        _client = anthropic.Anthropic()
+    return _client
 
 
 def run_turn(history: list[dict], on_sentence):
@@ -33,7 +42,7 @@ def run_turn(history: list[dict], on_sentence):
 
     for _ in range(MAX_TOOL_HOPS):
         buffer = ""
-        with _client.messages.stream(
+        with _get_client().messages.stream(
             model=MODEL, max_tokens=400,
             system=SYSTEM, tools=TOOL_SCHEMAS,
             messages=messages,

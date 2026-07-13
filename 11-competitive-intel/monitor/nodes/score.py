@@ -22,7 +22,25 @@ KIND_WEIGHT = {
     "blog": 0.8,
 }
 
-_llm = anthropic.Anthropic()
+_llm: anthropic.Anthropic | None = None
+
+
+def _get_client() -> anthropic.Anthropic:
+    """Lazily build the client so the module imports
+    without a key present (tests, offline use)."""
+    global _llm
+    if _llm is None:
+        _llm = anthropic.Anthropic()
+    return _llm
+
+
+def compute_final_score(base_score: int, kind: str) -> int:
+    """Apply the page-kind weight and clamp to the 1-5
+    scale. Pure and deterministic -- no model call --
+    so the significance-scoring math is unit-testable
+    without live credentials."""
+    weight = KIND_WEIGHT.get(kind, 1.0)
+    return round(min(5, base_score * weight))
 
 
 def score_node(state: dict) -> dict:
@@ -32,15 +50,13 @@ def score_node(state: dict) -> dict:
         kind=change["kind"],
         summary=change["summary"],
     )
-    resp = _llm.messages.create(
+    resp = _get_client().messages.create(
         model=SCORE_MODEL, max_tokens=200,
         messages=[{"role": "user",
                    "content": prompt}],
     )
     raw = json.loads(resp.content[0].text)
-    base = int(raw["score"])
-    weight = KIND_WEIGHT.get(change["kind"], 1.0)
-    final = round(min(5, base * weight))
+    final = compute_final_score(int(raw["score"]), change["kind"])
 
     return {"scored": [{
         "url": change["url"],

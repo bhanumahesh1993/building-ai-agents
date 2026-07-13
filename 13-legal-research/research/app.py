@@ -4,8 +4,7 @@ from __future__ import annotations
 import anyio
 from fastapi import FastAPI
 from pydantic import BaseModel
-from langfuse import get_client
-from langfuse.decorators import observe
+from langfuse import observe
 
 from .orchestrator import run_research
 from .synthesize import synthesize_issue
@@ -13,7 +12,19 @@ from .citations import verify_citations
 from .memo import build_memo
 
 app = FastAPI(title="Legal Research Deep-Dive")
-langfuse = get_client()
+
+_langfuse = None
+
+
+def _get_langfuse():
+    """Lazily build the client so the module imports
+    without Langfuse credentials present (tests, offline
+    use)."""
+    global _langfuse
+    if _langfuse is None:
+        from langfuse import get_client
+        _langfuse = get_client()
+    return _langfuse
 
 
 class ResearchReq(BaseModel):

@@ -8,14 +8,28 @@ import psycopg
 from google import genai
 from pgvector.psycopg import register_vector
 
-DB_URL = os.environ["DATABASE_URL"]
 EMBED_MODEL = os.getenv("EMBED_MODEL", "text-embedding-004")
-_client = genai.Client()
+
+_client: genai.Client | None = None
+
+
+def _get_client() -> genai.Client:
+    """Lazily build the client so the module imports
+    without a key present (tests, offline use)."""
+    global _client
+    if _client is None:
+        _client = genai.Client()
+    return _client
+
+
+def _get_db_url() -> str:
+    """Read the DB URL at call time, not import time."""
+    return os.environ["DATABASE_URL"]
 
 
 def embed_text(text: str) -> list[float]:
     """Turn one string into a 768-dim embedding."""
-    resp = _client.models.embed_content(
+    resp = _get_client().models.embed_content(
         model=EMBED_MODEL, contents=text)
     return resp.embeddings[0].values
 
@@ -29,7 +43,7 @@ def search_corpus(
     across all the expanded queries it matched.
     """
     best: dict[str, dict] = {}
-    with psycopg.connect(DB_URL, autocommit=True) as conn:
+    with psycopg.connect(_get_db_url(), autocommit=True) as conn:
         register_vector(conn)
         for q in queries:
             vec = embed_text(q)

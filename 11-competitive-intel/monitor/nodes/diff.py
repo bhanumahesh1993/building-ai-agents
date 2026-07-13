@@ -16,7 +16,16 @@ DIFF_MODEL = os.getenv(
 DRIFT_THRESHOLD = float(
     os.getenv("DRIFT_THRESHOLD", "0.08"))
 
-_llm = anthropic.Anthropic()
+_llm: anthropic.Anthropic | None = None
+
+
+def _get_client() -> anthropic.Anthropic:
+    """Lazily build the client so the module imports
+    without a key present (tests, offline use)."""
+    global _llm
+    if _llm is None:
+        _llm = anthropic.Anthropic()
+    return _llm
 
 
 def _cosine_distance(
@@ -47,7 +56,7 @@ def diff_node(state: dict) -> dict:
         old_text=previous["text"][:3000],
         new_text=result["text"][:3000],
     )
-    resp = _llm.messages.create(
+    resp = _get_client().messages.create(
         model=DIFF_MODEL, max_tokens=300,
         messages=[{"role": "user",
                    "content": prompt}],

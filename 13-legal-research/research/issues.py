@@ -5,7 +5,6 @@ import json
 import os
 
 import anyio
-from claude_agent_sdk import query, ClaudeAgentOptions
 
 from .prompts import ISSUE_SYSTEM
 
@@ -16,9 +15,24 @@ FALLBACK = os.getenv(
 MAX_ISSUES = 4
 
 
+def _parse_issues_response(
+    text: str, max_issues: int = MAX_ISSUES) -> list[dict]:
+    """Pure decomposition logic: parse the lead agent's
+    JSON reply and enforce the issue cap. Factored out so
+    the fan-out/scoping contract is unit-testable without
+    the Claude Agent SDK or any live model call."""
+    raw = json.loads(text)
+    return raw["issues"][:max_issues]
+
+
 async def spot_issues(
     facts: str, jurisdiction: str) -> list[dict]:
     """Lead agent: decompose the fact pattern."""
+    # Imported lazily so this module can be imported (and
+    # its pure parsing logic tested) without claude-agent-sdk
+    # installed or any credentials present.
+    from claude_agent_sdk import query, ClaudeAgentOptions
+
     prompt = ISSUE_SYSTEM.format(
         facts=facts, jurisdiction=jurisdiction,
         max_issues=MAX_ISSUES,
@@ -36,8 +50,7 @@ async def spot_issues(
             for block in msg.content:
                 if hasattr(block, "text"):
                     text += block.text
-    raw = json.loads(text)
-    return raw["issues"][:MAX_ISSUES]
+    return _parse_issues_response(text, MAX_ISSUES)
 
 
 if __name__ == "__main__":
