@@ -5,8 +5,17 @@ import os
 
 from tavily import TavilyClient
 
-_client = TavilyClient(
-    api_key=os.environ["TAVILY_API_KEY"])
+_client: TavilyClient | None = None
+
+
+def _get_client() -> TavilyClient:
+    """Lazily build the client so the module imports
+    without a key present (tests, offline use)."""
+    global _client
+    if _client is None:
+        _client = TavilyClient(
+            api_key=os.environ["TAVILY_API_KEY"])
+    return _client
 
 TRUSTED = (
     ".gov", ".edu", ".org", "reuters.com",
@@ -16,7 +25,7 @@ TRUSTED = (
 
 def web_search(query: str, k: int = 6) -> list[dict]:
     """Search the web, return normalized results."""
-    resp = _client.search(
+    resp = _get_client().search(
         query=query,
         max_results=k,
         search_depth="advanced",
