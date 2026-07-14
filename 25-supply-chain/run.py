@@ -8,6 +8,7 @@ import uvicorn
 
 from a2a_client import (
     can_fulfill, confirm, delegate, discover,
+    extract_purchase_order,
 )
 from shared.schemas import ReorderRequest
 
@@ -39,9 +40,11 @@ def run_demo():
             card["url"], task["id"],
             answer.strip().lower() == "y")
 
-    po = task["artifacts"][0]["parts"][0]["data"]
-    print(f"PO {po['po_number']}: {po['supplier']} "
-          f"— ${po['total']:.2f}")
+    # Treat ProcureIQ's output as untrusted until it validates
+    # against our own PurchaseOrder schema.
+    po = extract_purchase_order(task)
+    print(f"PO {po.po_number}: {po.supplier} "
+          f"— ${po.total:.2f}")
 
 
 if __name__ == "__main__":

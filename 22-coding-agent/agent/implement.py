@@ -3,10 +3,6 @@ from __future__ import annotations
 
 import os
 
-from claude_agent_sdk import (
-    query, ClaudeAgentOptions, HookMatcher,
-)
-
 from .prompts import IMPLEMENT_SYSTEM, FIX_FAILURE_SYSTEM
 from .sandbox import Sandbox
 
@@ -34,7 +30,13 @@ async def _veto_protected_paths(input_data, tool_use_id,
     return {}
 
 
-def _options(box: Sandbox) -> ClaudeAgentOptions:
+def _options(box: Sandbox):
+    # Imported lazily so this module (and the hook
+    # function above, which is unit-tested directly) can
+    # be imported without claude-agent-sdk installed or
+    # any credentials present.
+    from claude_agent_sdk import ClaudeAgentOptions, HookMatcher
+
     return ClaudeAgentOptions(
         system_prompt="You edit code carefully and small.",
         model=WORKER_MODEL,
@@ -48,6 +50,8 @@ def _options(box: Sandbox) -> ClaudeAgentOptions:
 
 async def implement_plan(box: Sandbox, plan: dict) -> None:
     """First pass: write code and a test from the plan."""
+    from claude_agent_sdk import query
+
     prompt = IMPLEMENT_SYSTEM.format(**plan)
     async for _ in query(
         prompt=prompt, options=_options(box)):
@@ -56,6 +60,8 @@ async def implement_plan(box: Sandbox, plan: dict) -> None:
 
 async def fix_failure(box: Sandbox, failures: str) -> None:
     """One targeted retry after a failed test run."""
+    from claude_agent_sdk import query
+
     prompt = FIX_FAILURE_SYSTEM.format(failures=failures)
     async for _ in query(
         prompt=prompt, options=_options(box)):

@@ -3,35 +3,20 @@ from __future__ import annotations
 
 import os
 
+from a2a.types import AgentCard
 from google.adk.agents import LlmAgent
 from google.adk.a2a.utils.agent_to_a2a import to_a2a
 from google.adk.tools.mcp_tool import MCPToolset
 from google.adk.tools.mcp_tool.mcp_session_manager import (
     StdioConnectionParams,
 )
+from mcp import StdioServerParameters
 
 MODEL = os.getenv("BUYER_MODEL", "gemini-2.5-flash")
 
-stock_tools = MCPToolset(
-    connection_params=StdioConnectionParams(
-        command="python",
-        args=["-m", "inventory_agent.mcp_server"],
-    ),
-)
-
-inventory_agent = LlmAgent(
-    name="inventory_agent",
-    model=MODEL,
-    description="Watches stock and flags reorders.",
-    instruction=(
-        "You track stock for Northwind Distribution. "
-        "Use your tools to check on-hand quantity "
-        "against the reorder line. Never invent a "
-        "quantity you did not read from a tool."
-    ),
-    tools=[stock_tools],
-)
-
+# Public A2A Agent Card — the contract Northwind exposes to any
+# peer org that wants to delegate a reorder. Structure follows
+# the a2a-sdk AgentCard schema (validated in tests/test_agent_card.py).
 AGENT_CARD = {
     "protocolVersion": "1.0",
     "name": "Inventory Agent",
@@ -54,4 +39,67 @@ AGENT_CARD = {
     }],
 }
 
-app = to_a2a(inventory_agent, port=8000, card=AGENT_CARD)
+_stock_tools: MCPToolset | None = None
+_inventory_agent: LlmAgent | None = None
+_app = None
+
+
+def _get_stock_tools() -> MCPToolset:
+    """Lazily wire the stdio MCP toolset. Building this at import
+    time would fork a subprocess as a side effect of `import
+    inventory_agent.agent` -- defer it to first real use instead."""
+    global _stock_tools
+    if _stock_tools is None:
+        _stock_tools = MCPToolset(
+            connection_params=StdioConnectionParams(
+                server_params=StdioServerParameters(
+                    command="python",
+                    args=["-m", "inventory_agent.mcp_server"],
+                ),
+            ),
+        )
+    return _stock_tools
+
+
+def _get_agent() -> LlmAgent:
+    """Lazily build the ADK agent so import needs no model key."""
+    global _inventory_agent
+    if _inventory_agent is None:
+        _inventory_agent = LlmAgent(
+            name="inventory_agent",
+            model=MODEL,
+            description="Watches stock and flags reorders.",
+            instruction=(
+                "You track stock for Northwind Distribution. "
+                "Use your tools to check on-hand quantity "
+                "against the reorder line. Never invent a "
+                "quantity you did not read from a tool."
+            ),
+            tools=[_get_stock_tools()],
+        )
+    return _inventory_agent
+
+
+def _get_app():
+    """Lazily build the A2A Starlette app. Only touched when
+    something actually asks for `app` (e.g. uvicorn in run.py),
+    never as a side effect of importing this module."""
+    global _app
+    if _app is None:
+        _app = to_a2a(
+            _get_agent(), port=8000,
+            agent_card=AgentCard(**AGENT_CARD),
+        )
+    return _app
+
+
+def __getattr__(name: str):
+    # PEP 562: makes `app` a lazy module attribute. `import
+    # inventory_agent.agent` alone builds nothing; only
+    # `inventory_agent.agent.app` (or `from ... import app`,
+    # which run.py's __import__(..., fromlist=["app"]).app does)
+    # triggers construction.
+    if name == "app":
+        return _get_app()
+    raise AttributeError(
+        f"module {__name__!r} has no attribute {name!r}")

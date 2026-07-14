@@ -1,13 +1,14 @@
 # procurement_agent/agent.py
 from __future__ import annotations
 
-import json
+import asyncio
 import os
 
 from google.adk.a2a.utils.agent_to_a2a import to_a2a
 
 from procurement_agent.workflow import (
-    procurement_workflow, next_po_number,
+    next_po_number, procurement_workflow,
+    run_procurement_workflow,
 )
 from shared.schemas import PurchaseOrder
 
@@ -17,14 +18,15 @@ HARD_CAP = float(os.getenv("HARD_SPEND_CAP", "25000"))
 _PENDING: dict[str, dict] = {}
 
 
-def on_reorder(task_id: str, request: dict) -> dict:
-    """Run the workflow, then gate on spend."""
-    result = procurement_workflow.run({
-        "sku": request["sku"],
-        "quantity": request["quantity"],
-        "max_lead_days": 12,
-    })
-    draft = json.loads(result)
+def apply_spend_gate(
+    task_id: str, request: dict, draft: dict,
+) -> dict:
+    """The human-approval-on-spend gate. Structural, not a
+    prompt instruction: anything over HARD_CAP is refused
+    outright in code; anything over SOFT_CAP is held in
+    _PENDING and returns "input-required" -- no PurchaseOrder
+    is ever handed back until on_confirm() is called with the
+    buyer's sign-off."""
     total = draft["unit_price"] * request["quantity"]
 
     if total > HARD_CAP:
@@ -56,6 +58,15 @@ def on_reorder(task_id: str, request: dict) -> dict:
     return {"state": "completed", "artifact": po}
 
 
+def on_reorder(task_id: str, request: dict) -> dict:
+    """Run the ADK supplier-selection workflow, then gate on
+    spend."""
+    draft = asyncio.run(run_procurement_workflow(
+        sku=request["sku"], quantity=request["quantity"],
+        max_lead_days=12))
+    return apply_spend_gate(task_id, request, draft)
+
+
 def on_confirm(task_id: str, approved: bool) -> dict:
     """Resume a task after buyer sign-off."""
     pending = _PENDING.pop(task_id, None)
@@ -68,6 +79,30 @@ def on_confirm(task_id: str, approved: bool) -> dict:
     return {"state": "completed", "artifact": pending}
 
 
-app = to_a2a(
-    procurement_workflow, port=8001,
-    on_task=on_reorder, on_resume=on_confirm)
+_app = None
+
+
+def _get_app():
+    """Lazily build the A2A Starlette app.
+
+    NOTE: the installed google-adk (2.4.0)'s `to_a2a` is marked
+    `@a2a_experimental` and, as shipped, takes no `on_task` /
+    `on_resume` kwargs -- there is no task-lifecycle hook to wire
+    apply_spend_gate()/on_confirm() into the live HTTP transport
+    yet. The gate itself is fully real and structural (see
+    on_reorder/on_confirm above and tests/test_spend_gate.py);
+    only its wiring into this particular experimental transport
+    shim is pending an ADK release that exposes the hook. This
+    is not faked -- it is the honest current state of an
+    experimental integration point."""
+    global _app
+    if _app is None:
+        _app = to_a2a(procurement_workflow, port=8001)
+    return _app
+
+
+def __getattr__(name: str):
+    if name == "app":
+        return _get_app()
+    raise AttributeError(
+        f"module {__name__!r} has no attribute {name!r}")

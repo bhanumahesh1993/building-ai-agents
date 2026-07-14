@@ -4,8 +4,6 @@ from __future__ import annotations
 import json
 import os
 
-from claude_agent_sdk import query, ClaudeAgentOptions
-
 JUDGE_MODEL = os.getenv(
     "JUDGE_MODEL", "claude-opus-4-8")
 
@@ -28,6 +26,11 @@ Diff: {diff}"""
 async def human_review_catch(
     issue: str, diff: str
 ) -> dict:
+    # Imported lazily so this module can be imported
+    # without claude-agent-sdk installed or any
+    # credentials present.
+    from claude_agent_sdk import query, ClaudeAgentOptions
+
     prompt = REVIEW_CATCH_RUBRIC.format(
         issue=issue, diff=diff)
     options = ClaudeAgentOptions(

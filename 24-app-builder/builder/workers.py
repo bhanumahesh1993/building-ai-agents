@@ -4,10 +4,6 @@ from __future__ import annotations
 import asyncio
 import os
 
-from claude_agent_sdk import (
-    query, ClaudeAgentOptions, HookMatcher,
-)
-
 from .planner import BuildPlan, ComponentTask
 
 WORKER_MODEL = os.getenv(
@@ -50,7 +46,12 @@ def _scope_hook(prefix: str):
     return _veto
 
 
-def _options(root: str, prefix: str) -> ClaudeAgentOptions:
+def _options(root: str, prefix: str):
+    # Imported lazily so this module can be imported (and
+    # _scope_hook's path-scoping logic tested) without
+    # claude-agent-sdk installed or any credentials present.
+    from claude_agent_sdk import ClaudeAgentOptions, HookMatcher
+
     return ClaudeAgentOptions(
         system_prompt="You write small, correct code.",
         model=WORKER_MODEL,
@@ -66,6 +67,8 @@ async def _build_one(
     root: str, plan: BuildPlan, task: ComponentTask,
 ) -> str:
     """Run one sandboxed component worker to completion."""
+    from claude_agent_sdk import query
+
     prefix = COMPONENT_PATHS[task.component]
     prompt = WORKER_PROMPT.format(
         component=task.component,

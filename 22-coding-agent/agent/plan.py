@@ -4,8 +4,6 @@ from __future__ import annotations
 import json
 import os
 
-from claude_agent_sdk import query, ClaudeAgentOptions
-
 from .context import RepoContext
 from .prompts import PLAN_SYSTEM
 
@@ -19,6 +17,11 @@ async def make_plan(
     title: str, body: str, ctx: RepoContext
 ) -> dict:
     """Lead agent: decide the approach, write no code."""
+    # Imported lazily so this module can be imported
+    # without claude-agent-sdk installed or any
+    # credentials present.
+    from claude_agent_sdk import query, ClaudeAgentOptions
+
     files_block = "\n\n".join(
         f"# {path}\n{text}"
         for path, text in ctx.relevant_files.items())

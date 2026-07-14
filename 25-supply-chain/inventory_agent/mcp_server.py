@@ -1,15 +1,21 @@
 # inventory_agent/mcp_server.py
 from __future__ import annotations
 
+import os
 import sqlite3
 
 from mcp.server.fastmcp import FastMCP
 
 mcp = FastMCP("inventory-stock")
-DB_PATH = "inventory.db"
+DB_PATH = os.getenv("INVENTORY_DB_PATH", "inventory.db")
 
 
 def _conn():
+    """Opens a fresh connection per call -- no DB handle is ever
+    held open at import time, so importing this module (or
+    inventory_agent.agent, which spawns it as an MCP subprocess)
+    never touches the filesystem or requires INVENTORY_DB_PATH
+    to be set."""
     return sqlite3.connect(DB_PATH)
 
 

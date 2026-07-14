@@ -1,0 +1,24 @@
+[project]
+name = "app-builder"
+version = "1.0.0"
+description = "Full-Stack App Builder Agent — Building AI Agents, Project 24"
+requires-python = ">=3.11"
+dependencies = [
+    "claude-agent-sdk>=0.1,<1.0",
+    "fastapi>=0.118,<0.200",
+    "uvicorn[standard]>=0.35,<0.40",
+    "pydantic>=2.11,<3.0",
+    "httpx>=0.28,<1.0",
+    "langfuse>=3.6,<4.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "ruff>=0.6"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["builder*"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"

@@ -39,7 +39,7 @@ class Remediation(TypedDict):
 
 class IncidentState(TypedDict, total=False):
     """The graph's shared memory for one incident."""
-    raw_alert: dict
+    raw_event: dict
     alert: Alert
     investigations: Annotated[
         list[Investigation], operator.add]

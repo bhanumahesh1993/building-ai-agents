@@ -12,8 +12,17 @@ from ..state import IncidentState
 ROOT_CAUSE_MODEL = os.getenv(
     "ROOT_CAUSE_MODEL", "claude-opus-4-5")
 
-_llm = ChatAnthropic(
-    model=ROOT_CAUSE_MODEL, temperature=0)
+_llm: ChatAnthropic | None = None
+
+
+def _get_llm() -> ChatAnthropic:
+    """Lazily build the client so the module imports
+    without a key present (tests, offline use)."""
+    global _llm
+    if _llm is None:
+        _llm = ChatAnthropic(
+            model=ROOT_CAUSE_MODEL, temperature=0)
+    return _llm
 
 
 def root_cause_node(state: IncidentState) -> dict:
@@ -27,7 +36,7 @@ def root_cause_node(state: IncidentState) -> dict:
         alert=state["alert"]["raw"],
         findings=findings,
     )
-    resp = _llm.invoke(prompt)
+    resp = _get_llm().invoke(prompt)
     rc = json.loads(resp.content)
     return {
         "root_cause": rc,

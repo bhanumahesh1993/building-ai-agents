@@ -2,9 +2,6 @@
 from __future__ import annotations
 
 import os
-import subprocess
-
-from claude_agent_sdk import query, ClaudeAgentOptions
 
 from .github_stub import open_pull_request, PullRequest
 from .prompts import PR_SYSTEM
@@ -25,6 +22,11 @@ async def open_pr_for_run(
     attempts: int,
 ) -> PullRequest:
     """Package plan + diff + test verdict into a PR."""
+    # Imported lazily so this module can be imported
+    # without claude-agent-sdk installed or any
+    # credentials present.
+    from claude_agent_sdk import query, ClaudeAgentOptions
+
     diff_stat = _diff_summary(box)
     diff_full = box.run(
         ["git", "diff", "HEAD"]).stdout[:6000]

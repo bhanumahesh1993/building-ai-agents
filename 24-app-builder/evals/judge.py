@@ -4,8 +4,6 @@ from __future__ import annotations
 import json
 import os
 
-from claude_agent_sdk import query, ClaudeAgentOptions
-
 JUDGE_MODEL = os.getenv("JUDGE_MODEL", "claude-opus-4-8")
 
 RUBRIC = """Grade this generated app against its spec.
@@ -24,7 +22,20 @@ JSON: {{"scope_discipline": n,
 "code_plausibility": n, "notes": "..."}}"""
 
 
+def _parse_grade_response(text: str) -> dict:
+    """Pure parsing logic: the judge's JSON reply as a
+    dict. Factored out so the rubric shape is
+    unit-testable without the Claude Agent SDK or any
+    live model call."""
+    return json.loads(text)
+
+
 async def grade(non_goals: list[str], claude_md: str):
+    # Imported lazily so this module can be imported (and
+    # its pure parsing logic tested) without claude-agent-sdk
+    # installed or any credentials present.
+    from claude_agent_sdk import query, ClaudeAgentOptions
+
     prompt = RUBRIC.format(
         non_goals=non_goals, claude_md=claude_md)
     options = ClaudeAgentOptions(
@@ -35,4 +46,4 @@ async def grade(non_goals: list[str], claude_md: str):
             for block in msg.content:
                 if hasattr(block, "text"):
                     text += block.text
-    return json.loads(text)
+    return _parse_grade_response(text)

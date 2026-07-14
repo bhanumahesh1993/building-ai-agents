@@ -5,8 +5,6 @@ import json
 import os
 from pydantic import BaseModel
 
-from claude_agent_sdk import query, ClaudeAgentOptions
-
 from .spec import AppSpec, render_criterion
 
 LEAD_MODEL = os.getenv("LEAD_MODEL", "claude-opus-4-8")
@@ -53,8 +51,22 @@ Acceptance criteria:
 {criteria}"""
 
 
+def _parse_plan_response(text: str) -> BuildPlan:
+    """Pure parsing logic: turn the lead agent's JSON
+    reply into a validated BuildPlan. Factored out so the
+    contract/task shape is unit-testable without the
+    Claude Agent SDK or any live model call."""
+    raw = json.loads(text)
+    return BuildPlan(**raw)
+
+
 async def make_plan(spec: AppSpec) -> BuildPlan:
     """Decompose a spec into a contract and four tasks."""
+    # Imported lazily so this module can be imported (and
+    # its pure parsing logic tested) without claude-agent-sdk
+    # installed or any credentials present.
+    from claude_agent_sdk import query, ClaudeAgentOptions
+
     spec.check_scope()
     criteria = "\n".join(
         f"- {render_criterion(c)}"
@@ -75,5 +87,4 @@ async def make_plan(spec: AppSpec) -> BuildPlan:
             for block in msg.content:
                 if hasattr(block, "text"):
                     text += block.text
-    raw = json.loads(text)
-    return BuildPlan(**raw)
+    return _parse_plan_response(text)

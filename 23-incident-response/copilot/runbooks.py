@@ -9,8 +9,17 @@ import voyageai
 EMBED_MODEL = os.getenv(
     "EMBED_MODEL", "voyage-3.5")
 
-_client = voyageai.Client(
-    api_key=os.environ["VOYAGE_API_KEY"])
+_client: voyageai.Client | None = None
+
+
+def _get_client() -> voyageai.Client:
+    """Lazily build so the module imports without a key present
+    (tests, offline use)."""
+    global _client
+    if _client is None:
+        _client = voyageai.Client(
+            api_key=os.environ["VOYAGE_API_KEY"])
+    return _client
 
 RUNBOOKS = [
     {
@@ -121,7 +130,7 @@ def _corpus() -> list[list[float]]:
         texts = [
             r["title"] + " - " + r["text"]
             for r in RUNBOOKS]
-        resp = _client.embed(
+        resp = _get_client().embed(
             texts, model=EMBED_MODEL,
             input_type="document")
         _corpus_vectors = resp.embeddings
@@ -137,7 +146,7 @@ def _cosine(a: list[float], b: list[float]) -> float:
 
 def retrieve(query: str) -> dict:
     """Return the best-matching runbook for a query."""
-    qvec = _client.embed(
+    qvec = _get_client().embed(
         [query], model=EMBED_MODEL,
         input_type="query").embeddings[0]
     vectors = _corpus()

@@ -1,0 +1,29 @@
+[project]
+name = "incident-response"
+version = "1.0.0"
+description = "DevOps Incident-Response Copilot — Building AI Agents, Project 23"
+requires-python = ">=3.11"
+dependencies = [
+    "langgraph>=1.0,<2.0",
+    "langchain-core>=1.0,<2.0",
+    "langchain-anthropic>=1.0,<2.0",
+    "langchain>=1.0,<2.0",
+    "langfuse>=3.0,<4.0",
+    "fastapi>=0.118,<0.200",
+    "uvicorn[standard]>=0.35,<0.40",
+    "mcp[cli]>=1.12,<2.0",
+    "voyageai>=0.3,<0.4",
+    "numpy>=2.2,<3.0",
+    "pydantic>=2.11,<3.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "ruff>=0.6"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["copilot*"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
