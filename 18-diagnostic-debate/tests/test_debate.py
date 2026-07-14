@@ -23,8 +23,11 @@ def test_route_caps_at_max_rounds():
 
 
 def test_recheck_fires_only_once():
-    state = {"force_recheck": True, "hypotheses": [
-        _hyp("a", 0.5)]}
+    state = {
+        "force_recheck": True,
+        "hypotheses": [_hyp("a", 0.5)],
+        "findings": ["f"], "revealed_results": {},
+        "round": 1}
     result = route_after_bias(state)
     assert isinstance(result, list)
     state["force_recheck"] = False

@@ -9,11 +9,32 @@ Full walkthrough, architecture diagrams, and design rationale are in
 
 ## Run it
 
+This is an **educational/research** system, not investment advice: it is
+**paper-only** and never places a live order. There is no brokerage or
+exchange client anywhere in `firm/` — the trader, risk, and manager nodes
+produce a *simulated* `paper_fill` with `broker_order_id` hard-coded to
+`None` in source, and the position-size cap is enforced by a `min()` clamp
+in code (`firm/nodes/risk.py`), never merely requested in a prompt. A
+proposal above `CONFIRM_ABOVE_PCT` still pauses at a structural
+`langgraph` `interrupt()` for human confirmation before the simulated
+blotter records it.
+
 ```bash
-uv sync
+uv venv --python 3.12
+uv pip install -e ".[dev]"
 cp .env.example .env    # add your keys
 # entry point varies by project — see the book chapter's "Deployment" section
 ```
+
+The package imports and its deterministic tests (bull/bear debate cap, risk
+veto and revision loop, and the no-live-trading guards) run offline with no
+environment variables set: `uv run --no-project pytest -q`.
+
+For live use — real model calls for each analyst/debate/trader/risk/manager
+node — you need an `ANTHROPIC_API_KEY` set in `.env`. Without it, every
+node builds its `ChatAnthropic` client lazily behind a module-level
+`_get_llm()` and will only raise the first time it actually tries to reach
+the model, not at import time.
 
 ## Files
 

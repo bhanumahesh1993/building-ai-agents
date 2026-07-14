@@ -17,7 +17,17 @@ DRAWDOWN_LIMIT = float(
 PAPER_CAPITAL = float(
     os.getenv("PAPER_CAPITAL_USD", "100000"))
 
-_llm = ChatAnthropic(model=RISK_MODEL, temperature=0)
+_llm: ChatAnthropic | None = None
+
+
+def _get_llm() -> ChatAnthropic:
+    """Lazily build the client so the module imports
+    without a key present (tests, offline use)."""
+    global _llm
+    if _llm is None:
+        _llm = ChatAnthropic(
+            model=RISK_MODEL, temperature=0)
+    return _llm
 
 
 def risk_node(state: FirmState) -> dict:
@@ -28,7 +38,7 @@ def risk_node(state: FirmState) -> dict:
         drawdown_limit=DRAWDOWN_LIMIT,
         proposal=state["proposal"], portfolio=portfolio,
     )
-    resp = _llm.invoke(prompt)
+    resp = _get_llm().invoke(prompt)
     parsed = json.loads(resp.content)
     # Hard-coded backstop: never trust the model's own
     # arithmetic for the cap. Code enforces it; the LLM

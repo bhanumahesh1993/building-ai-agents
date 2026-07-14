@@ -26,7 +26,16 @@ Return ONLY JSON:
     "rationale": "why this resolves the concern"}}
 ]}}"""
 
-_llm = ChatAnthropic(model=LEAD_MODEL, temperature=0.2)
+_llm: ChatAnthropic | None = None
+
+
+def _get_llm() -> ChatAnthropic:
+    """Lazily build the client so the module imports
+    without a key present (tests, offline use)."""
+    global _llm
+    if _llm is None:
+        _llm = ChatAnthropic(model=LEAD_MODEL, temperature=0.2)
+    return _llm
 
 
 def redline_node(state: DDState) -> dict:
@@ -40,7 +49,7 @@ def redline_node(state: DDState) -> dict:
         f"{g['playbook_ref']}\nwhy: {g['rationale']}"
         for g in grounded)
     prompt = REDLINE_SYSTEM.format(flags=body)
-    resp = _llm.invoke(prompt)
+    resp = _get_llm().invoke(prompt)
     parsed = json.loads(resp.content)
     redlines: list[Redline] = [{
         "clause_id": r["clause_id"],

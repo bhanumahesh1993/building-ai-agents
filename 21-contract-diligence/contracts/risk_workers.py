@@ -47,7 +47,16 @@ Return ONLY JSON:
 Clauses:
 {clauses}"""
 
-_llm = ChatAnthropic(model=WORKER_MODEL, temperature=0)
+_llm: ChatAnthropic | None = None
+
+
+def _get_llm() -> ChatAnthropic:
+    """Lazily build the client so the module imports
+    without a key present (tests, offline use)."""
+    global _llm
+    if _llm is None:
+        _llm = ChatAnthropic(model=WORKER_MODEL, temperature=0)
+    return _llm
 
 
 def _norm(s: str) -> str:
@@ -80,7 +89,7 @@ def risk_node(state: RiskWorkerState) -> dict:
     prompt = RISK_SYSTEM.format(
         ctype=ctype, rubric=RUBRIC.get(ctype, RUBRIC["other"]),
         clauses=body)
-    resp = _llm.invoke(prompt)
+    resp = _get_llm().invoke(prompt)
     parsed = json.loads(resp.content)
     verified = _verify_quotes(parsed["flags"], clauses)
     flags: list[RiskFlag] = [{

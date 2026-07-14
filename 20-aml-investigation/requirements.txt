@@ -1,0 +1,8 @@
+# requirements.txt (illustrative pins)
+openai-agents==0.4.2
+openai==2.45.0
+fastapi==0.139.0
+uvicorn[standard]==0.39.0
+pydantic==2.13.4
+psycopg[binary]==3.3.4
+langfuse==3.15.0

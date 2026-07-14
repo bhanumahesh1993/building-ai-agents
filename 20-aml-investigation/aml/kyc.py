@@ -8,7 +8,6 @@ from openai import OpenAI
 
 from .state import Entity
 
-_client = OpenAI()
 EMBED_MODEL = os.getenv(
     "EMBED_MODEL", "text-embedding-3-small")
 MATCH_THRESHOLD = 0.86  # cosine similarity, not distance
@@ -17,10 +16,22 @@ HIGH_RISK_JURISDICTIONS = {
     "offshore-a", "offshore-b", "shell-haven",
 }
 
+# The embedding client is constructed lazily behind _get_client() so
+# importing this module never requires OPENAI_API_KEY to be set.
+_client: OpenAI | None = None
+
+
+def _get_client() -> OpenAI:
+    """Lazily build so the module imports without a key present."""
+    global _client
+    if _client is None:
+        _client = OpenAI()
+    return _client
+
 
 def _embed(text: str) -> str:
     """Embed text; return pgvector's bracketed format."""
-    resp = _client.embeddings.create(
+    resp = _get_client().embeddings.create(
         model=EMBED_MODEL, input=text)
     vec = resp.data[0].embedding
     return "[" + ",".join(str(v) for v in vec) + "]"

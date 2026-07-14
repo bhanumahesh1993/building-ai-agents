@@ -30,7 +30,16 @@ Heading: {heading}
 Section:
 {body}"""
 
-_llm = ChatAnthropic(model=EXTRACT_MODEL, temperature=0)
+_llm: ChatAnthropic | None = None
+
+
+def _get_llm() -> ChatAnthropic:
+    """Lazily build the client so the module imports
+    without a key present (tests, offline use)."""
+    global _llm
+    if _llm is None:
+        _llm = ChatAnthropic(model=EXTRACT_MODEL, temperature=0)
+    return _llm
 
 
 def extract_clauses(doc: ContractDoc) -> list[Clause]:
@@ -44,7 +53,7 @@ def extract_clauses(doc: ContractDoc) -> list[Clause]:
         prompt = EXTRACT_SYSTEM.format(
             types=", ".join(TYPES), heading=heading,
             body=body[:2000])
-        resp = _llm.invoke(prompt)
+        resp = _get_llm().invoke(prompt)
         parsed = json.loads(resp.content)
         out.append({
             "clause_id": f"{doc['contract_id']}-{i}",

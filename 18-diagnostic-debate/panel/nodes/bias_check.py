@@ -12,7 +12,16 @@ from ..state import PanelState
 BIAS_MODEL = os.getenv(
     "BIAS_MODEL", "claude-opus-4-5")
 
-_llm = ChatAnthropic(model=BIAS_MODEL, temperature=0)
+_llm: ChatAnthropic | None = None
+
+
+def _get_llm() -> ChatAnthropic:
+    """Lazily build the client so the module imports
+    without a key present (tests, offline use)."""
+    global _llm
+    if _llm is None:
+        _llm = ChatAnthropic(model=BIAS_MODEL, temperature=0)
+    return _llm
 
 
 def bias_check_node(state: PanelState) -> dict:
@@ -27,7 +36,7 @@ def bias_check_node(state: PanelState) -> dict:
     prompt = BIAS_SYSTEM.format(
         transcript=transcript, leader=leader["name"],
         rounds=state["round"])
-    resp = _llm.invoke(prompt)
+    resp = _get_llm().invoke(prompt)
     flags = json.loads(resp.content)["flags"]
 
     anchoring = [

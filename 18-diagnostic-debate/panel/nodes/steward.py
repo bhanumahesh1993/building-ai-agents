@@ -12,7 +12,16 @@ from ..state import PanelState
 STEWARD_MODEL = os.getenv(
     "STEWARD_MODEL", "claude-sonnet-4-5")
 
-_llm = ChatAnthropic(model=STEWARD_MODEL, temperature=0)
+_llm: ChatAnthropic | None = None
+
+
+def _get_llm() -> ChatAnthropic:
+    """Lazily build the client so the module imports
+    without a key present (tests, offline use)."""
+    global _llm
+    if _llm is None:
+        _llm = ChatAnthropic(model=STEWARD_MODEL, temperature=0)
+    return _llm
 
 
 def steward_node(state: PanelState) -> dict:
@@ -23,7 +32,7 @@ def steward_node(state: PanelState) -> dict:
     prompt = STEWARD_SYSTEM.format(
         orders=orders_text or "none ordered",
         spent=state["cost_total"], cap=state["cost_cap"])
-    resp = _llm.invoke(prompt)
+    resp = _get_llm().invoke(prompt)
     note = json.loads(resp.content).get(
         "note", resp.content)
 

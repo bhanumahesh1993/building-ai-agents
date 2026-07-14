@@ -12,12 +12,36 @@ from psycopg.rows import dict_row
 
 from .state import GroundedFlag, PlaybookWorkerState
 
-DB_URL = os.environ["PLAYBOOK_DB_URL"]
 WORKER_MODEL = os.getenv(
     "WORKER_MODEL", "claude-sonnet-4-5")
 
-_embed = OpenAIEmbedding(model="text-embedding-3-large")
-_llm = ChatAnthropic(model=WORKER_MODEL, temperature=0)
+_embed: OpenAIEmbedding | None = None
+_llm: ChatAnthropic | None = None
+
+
+def _get_embed() -> OpenAIEmbedding:
+    """Lazily build the embedding client so the module
+    imports without a key present (tests, offline use)."""
+    global _embed
+    if _embed is None:
+        _embed = OpenAIEmbedding(model="text-embedding-3-large")
+    return _embed
+
+
+def _get_llm() -> ChatAnthropic:
+    """Lazily build the client so the module imports
+    without a key present (tests, offline use)."""
+    global _llm
+    if _llm is None:
+        _llm = ChatAnthropic(model=WORKER_MODEL, temperature=0)
+    return _llm
+
+
+def _db_url() -> str:
+    """Read the pgvector DSN lazily so the module imports
+    without PLAYBOOK_DB_URL set (tests, offline use)."""
+    return os.environ["PLAYBOOK_DB_URL"]
+
 
 PLAYBOOK_SYSTEM = """You are grounding a risk flag
 against this firm's standard playbook positions. Given
@@ -39,14 +63,14 @@ Return ONLY JSON:
 
 
 def _conn():
-    return psycopg.connect(DB_URL, row_factory=dict_row)
+    return psycopg.connect(_db_url(), row_factory=dict_row)
 
 
 def retrieve_standard_position(
     clause_type: str, query_text: str, k: int = 2,
 ) -> list[dict]:
     """Top-k standard positions for this clause type."""
-    vec = _embed.get_text_embedding(query_text)
+    vec = _get_embed().get_text_embedding(query_text)
     sql = """
         SELECT id, position_text, source
         FROM playbook_positions
@@ -71,7 +95,7 @@ def playbook_node(state: PlaybookWorkerState) -> dict:
     prompt = PLAYBOOK_SYSTEM.format(
         quote=flag["quote"], rationale=flag["rationale"],
         positions=positions)
-    resp = _llm.invoke(prompt)
+    resp = _get_llm().invoke(prompt)
     parsed = json.loads(resp.content)
     grounded: GroundedFlag = {
         **flag,

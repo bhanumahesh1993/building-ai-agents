@@ -11,7 +11,17 @@ from ..state import FirmState
 DEBATE_MODEL = os.getenv(
     "DEBATE_MODEL", "claude-sonnet-4-5")
 
-_llm = ChatAnthropic(model=DEBATE_MODEL, temperature=0.3)
+_llm: ChatAnthropic | None = None
+
+
+def _get_llm() -> ChatAnthropic:
+    """Lazily build the client so the module imports
+    without a key present (tests, offline use)."""
+    global _llm
+    if _llm is None:
+        _llm = ChatAnthropic(
+            model=DEBATE_MODEL, temperature=0.3)
+    return _llm
 
 
 def _transcript(state: FirmState) -> str:
@@ -29,7 +39,7 @@ def bull_node(state: FirmState) -> dict:
         views=state["analyst_views"],
         transcript=_transcript(state),
     )
-    resp = _llm.invoke(prompt)
+    resp = _get_llm().invoke(prompt)
     turn = {
         "round": state.get("debate_round", 0) + 1,
         "side": "bull", "argument": resp.content,
@@ -45,7 +55,7 @@ def bear_node(state: FirmState) -> dict:
         views=state["analyst_views"],
         transcript=_transcript(state),
     )
-    resp = _llm.invoke(prompt)
+    resp = _get_llm().invoke(prompt)
     turn = {
         "round": state.get("debate_round", 0) + 1,
         "side": "bear", "argument": resp.content,

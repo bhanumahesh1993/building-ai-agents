@@ -12,7 +12,17 @@ from ..state import FirmState
 TRADER_MODEL = os.getenv(
     "TRADER_MODEL", "claude-opus-4-5")
 
-_llm = ChatAnthropic(model=TRADER_MODEL, temperature=0.1)
+_llm: ChatAnthropic | None = None
+
+
+def _get_llm() -> ChatAnthropic:
+    """Lazily build the client so the module imports
+    without a key present (tests, offline use)."""
+    global _llm
+    if _llm is None:
+        _llm = ChatAnthropic(
+            model=TRADER_MODEL, temperature=0.1)
+    return _llm
 
 
 def trader_node(state: FirmState) -> dict:
@@ -23,7 +33,7 @@ def trader_node(state: FirmState) -> dict:
     ]
     prompt = TRADER_SYSTEM.format(
         symbol=state["symbol"], transcript="\n".join(lines))
-    resp = _llm.invoke(prompt)
+    resp = _get_llm().invoke(prompt)
     parsed = json.loads(resp.content)
     proposal = {
         "action": parsed["action"],

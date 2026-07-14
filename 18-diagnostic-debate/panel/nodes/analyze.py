@@ -12,8 +12,17 @@ from ..state import PanelState
 ANALYZE_MODEL = os.getenv(
     "ANALYZE_MODEL", "claude-sonnet-4-5")
 
-_llm = ChatAnthropic(
-    model=ANALYZE_MODEL, temperature=0.2)
+_llm: ChatAnthropic | None = None
+
+
+def _get_llm() -> ChatAnthropic:
+    """Lazily build the client so the module imports
+    without a key present (tests, offline use)."""
+    global _llm
+    if _llm is None:
+        _llm = ChatAnthropic(
+            model=ANALYZE_MODEL, temperature=0.2)
+    return _llm
 
 
 def analyze_node(state: PanelState) -> dict:
@@ -21,7 +30,7 @@ def analyze_node(state: PanelState) -> dict:
     findings = "\n".join(
         f"- {f}" for f in state["findings"])
     prompt = ANALYZE_SYSTEM.format(findings=findings)
-    resp = _llm.invoke(prompt)
+    resp = _get_llm().invoke(prompt)
     data = json.loads(resp.content)
     hyps = [
         {"name": h["name"], "rationale": h["rationale"],

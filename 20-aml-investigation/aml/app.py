@@ -11,17 +11,21 @@ from pydantic import BaseModel
 
 from . import investigate as inv_mod
 from .guardrails import redact_pii
-from .investigate import investigator
+from .investigate import get_investigator
 from .kyc import resolve_entity
 from .monitor import sweep
-from .sar_draft import sar_drafter
+from .sar_draft import get_sar_drafter
 from .scoring import match_typologies, score_case
 from .state import Case, CaseStatus, Transaction
 
-DB_URL = os.environ["DATABASE_URL"]
-
 app = FastAPI(title="AML Investigation API")
 CASES: dict[str, Case] = {}
+
+
+def _get_db_url() -> str:
+    """Read DATABASE_URL lazily, at call time, so importing this
+    module never requires the env var to be set."""
+    return os.environ["DATABASE_URL"]
 
 
 class ScanReq(BaseModel):
@@ -69,7 +73,7 @@ async def process(case_id: str):
     case = CASES[case_id]
     case.status = CaseStatus.INVESTIGATING
 
-    with psycopg.connect(DB_URL) as conn:
+    with psycopg.connect(_get_db_url()) as conn:
         names = {case.subject_account} | {
             t["counterparty"]
             for t in inv_mod.TXN_DB[case.subject_account]}
@@ -80,7 +84,7 @@ async def process(case_id: str):
     case.log(f"kyc resolved {len(case.entities)} entity")
 
     result = await Runner.run(
-        investigator,
+        get_investigator(),
         f"Investigate account {case.subject_account}. "
         f"Alerts: {[a.reason for a in case.alerts]}")
     case.narrative = result.final_output
@@ -91,7 +95,7 @@ async def process(case_id: str):
     case.status = CaseStatus.SCORED
 
     draft = await Runner.run(
-        sar_drafter,
+        get_sar_drafter(),
         f"Narrative: {case.narrative}\n"
         f"Typologies: {case.typologies}\n"
         f"Risk score: {case.risk_score:.1f}")

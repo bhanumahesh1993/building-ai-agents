@@ -12,7 +12,16 @@ from ..state import PanelState
 ORDER_MODEL = os.getenv(
     "ORDER_MODEL", "claude-sonnet-4-5")
 
-_llm = ChatAnthropic(model=ORDER_MODEL, temperature=0)
+_llm: ChatAnthropic | None = None
+
+
+def _get_llm() -> ChatAnthropic:
+    """Lazily build the client so the module imports
+    without a key present (tests, offline use)."""
+    global _llm
+    if _llm is None:
+        _llm = ChatAnthropic(model=ORDER_MODEL, temperature=0)
+    return _llm
 
 TEST_COSTS = {
     "cbc": 15, "cmp": 20, "esr": 12, "crp": 18,
@@ -33,7 +42,7 @@ def order_tests_node(state: PanelState) -> dict:
         if h["status"] == "active")
     prompt = ORDER_SYSTEM.format(
         menu=menu, hypotheses=hyps)
-    resp = _llm.invoke(prompt)
+    resp = _get_llm().invoke(prompt)
     data = json.loads(resp.content)
 
     orders = list(state.get("orders", []))

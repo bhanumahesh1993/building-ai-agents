@@ -60,9 +60,21 @@ of a crime; describe the pattern and let the evidence
 speak. Cite every claim with the transaction ids that
 support it."""
 
-investigator = Agent(
-    name="Investigator",
-    instructions=INVESTIGATE_INSTRUCTIONS,
-    tools=[get_transactions, get_kyc_profile],
-    model=INVESTIGATE_MODEL,
-)
+# The Agent (and the OpenAI client it builds under the hood) is
+# constructed lazily behind get_investigator() so importing this
+# module -- or aml.app -- never requires OPENAI_API_KEY or any
+# other env var to be set.
+_investigator: Agent | None = None
+
+
+def get_investigator() -> Agent:
+    """Lazily build so the module imports without a key present."""
+    global _investigator
+    if _investigator is None:
+        _investigator = Agent(
+            name="Investigator",
+            instructions=INVESTIGATE_INSTRUCTIONS,
+            tools=[get_transactions, get_kyc_profile],
+            model=INVESTIGATE_MODEL,
+        )
+    return _investigator

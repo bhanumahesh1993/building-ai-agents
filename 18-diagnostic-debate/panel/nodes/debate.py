@@ -14,10 +14,28 @@ ADVOCATE_MODEL = os.getenv(
 MODERATE_MODEL = os.getenv(
     "MODERATE_MODEL", "claude-opus-4-5")
 
-_advocate_llm = ChatAnthropic(
-    model=ADVOCATE_MODEL, temperature=0.3)
-_moderate_llm = ChatAnthropic(
-    model=MODERATE_MODEL, temperature=0)
+_advocate_llm: ChatAnthropic | None = None
+_moderate_llm: ChatAnthropic | None = None
+
+
+def _get_advocate_llm() -> ChatAnthropic:
+    """Lazily build the client so the module imports
+    without a key present (tests, offline use)."""
+    global _advocate_llm
+    if _advocate_llm is None:
+        _advocate_llm = ChatAnthropic(
+            model=ADVOCATE_MODEL, temperature=0.3)
+    return _advocate_llm
+
+
+def _get_moderate_llm() -> ChatAnthropic:
+    """Lazily build the client so the module imports
+    without a key present (tests, offline use)."""
+    global _moderate_llm
+    if _moderate_llm is None:
+        _moderate_llm = ChatAnthropic(
+            model=MODERATE_MODEL, temperature=0)
+    return _moderate_llm
 
 
 def advocate_node(state: AdvocateState) -> dict:
@@ -32,7 +50,7 @@ def advocate_node(state: AdvocateState) -> dict:
     prompt = ADVOCATE_SYSTEM.format(
         hypothesis=h["name"], rationale=h["rationale"],
         rivals=rivals, findings=findings, results=results)
-    resp = _advocate_llm.invoke(prompt)
+    resp = _get_advocate_llm().invoke(prompt)
     data = json.loads(resp.content)
     r = state["round"]
     return {"arguments": [
@@ -58,7 +76,7 @@ def moderate_node(state: PanelState) -> dict:
         if h["status"] == "active")
     prompt = MODERATE_SYSTEM.format(
         hypotheses=hyps_text, arguments=args_text)
-    resp = _moderate_llm.invoke(prompt)
+    resp = _get_moderate_llm().invoke(prompt)
     data = json.loads(resp.content)
     updated = {h["name"]: h for h in data["hypotheses"]}
 

@@ -28,12 +28,24 @@ factual language ("the transactions are consistent
 with...") -- never assert that a crime occurred. A
 human compliance officer makes that judgment, not you."""
 
-sar_drafter = Agent(
-    name="SAR Drafter",
-    instructions=SAR_INSTRUCTIONS,
-    output_guardrails=[
-        explainability_guardrail,
-        no_filing_claim_guardrail,
-    ],
-    model=DRAFT_MODEL,
-)
+# The Agent (and the OpenAI client it builds under the hood) is
+# constructed lazily behind get_sar_drafter() so importing this
+# module -- or aml.app -- never requires OPENAI_API_KEY or any
+# other env var to be set.
+_sar_drafter: Agent | None = None
+
+
+def get_sar_drafter() -> Agent:
+    """Lazily build so the module imports without a key present."""
+    global _sar_drafter
+    if _sar_drafter is None:
+        _sar_drafter = Agent(
+            name="SAR Drafter",
+            instructions=SAR_INSTRUCTIONS,
+            output_guardrails=[
+                explainability_guardrail,
+                no_filing_claim_guardrail,
+            ],
+            model=DRAFT_MODEL,
+        )
+    return _sar_drafter
