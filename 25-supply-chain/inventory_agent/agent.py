@@ -17,6 +17,10 @@ MODEL = os.getenv("BUYER_MODEL", "gemini-2.5-flash")
 # Public A2A Agent Card — the contract Northwind exposes to any
 # peer org that wants to delegate a reorder. Structure follows
 # the a2a-sdk AgentCard schema (validated in tests/test_agent_card.py).
+# NOTE: this is the pinned a2a-sdk 0.3.x (pre-1.0) card shape —
+# root-level `url` + `protocolVersion`. A2A v1.0 moves these into a
+# `supportedInterfaces[]` array (see the book chapter); this repo
+# tracks the installed 0.3.x SDK, so it keeps the 0.x shape here.
 AGENT_CARD = {
     "protocolVersion": "1.0",
     "name": "Inventory Agent",

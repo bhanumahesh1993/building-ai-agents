@@ -7,9 +7,7 @@ import uuid
 
 from google.adk.agents import LlmAgent, SequentialAgent
 
-from procurement_agent.mcp_tools import (
-    get_quotes, record_order,
-)
+from procurement_agent.mcp_tools import get_quotes
 
 APP_NAME = "procurement-workflow"
 
@@ -34,7 +32,8 @@ DRAFT_PROMPT = (
     "Draft a purchase order for the winning quote: "
     "sku, quantity, unit_price, total, supplier, "
     "lead_time_days. Compute total precisely. "
-    "Return JSON only, no prose."
+    "Return JSON only, no prose. Do not record or "
+    "place the order -- drafting only."
 )
 
 supplier_selection = LlmAgent(
@@ -45,9 +44,13 @@ quote_comparison = LlmAgent(
     name="quote_comparison", model=MODEL,
     instruction=COMPARE_PROMPT)
 
+# No tools: po_drafting only drafts. The ledger write
+# (record_order) happens one layer up in agent.py, and only
+# after the spend gate authorizes -- never during drafting,
+# so a declined or paused task leaves nothing in _ORDERS.
 po_drafting = LlmAgent(
     name="po_drafting", model=MODEL,
-    instruction=DRAFT_PROMPT, tools=[record_order])
+    instruction=DRAFT_PROMPT)
 
 procurement_workflow = SequentialAgent(
     name="procurement_workflow",

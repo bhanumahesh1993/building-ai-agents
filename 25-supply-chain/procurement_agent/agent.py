@@ -6,6 +6,7 @@ import os
 
 from google.adk.a2a.utils.agent_to_a2a import to_a2a
 
+from procurement_agent.mcp_tools import record_order
 from procurement_agent.workflow import (
     next_po_number, procurement_workflow,
     run_procurement_workflow,
@@ -45,6 +46,9 @@ def apply_spend_gate(
     )
 
     if total > SOFT_CAP:
+        # Pause BEFORE any write. Nothing reaches the ledger
+        # while the task waits at input-required, so a decline
+        # has nothing to undo.
         _PENDING[task_id] = po.model_dump()
         return {
             "state": "input-required",
@@ -55,6 +59,9 @@ def apply_spend_gate(
                 f"Confirm to finalize."
             ),
         }
+    # Below the soft cap: authorized automatically, so record
+    # the order here -- after the gate, never during drafting.
+    record_order(po.po_number, po.model_dump())
     return {"state": "completed", "artifact": po}
 
 
@@ -74,8 +81,12 @@ def on_confirm(task_id: str, approved: bool) -> dict:
         return {"state": "failed",
                 "reason": "no pending task"}
     if not approved:
+        # Declined: the draft never became an order, so there
+        # is nothing in the ledger to roll back.
         return {"state": "canceled",
                 "reason": "buyer declined"}
+    # Approved: the write happens here, once, after sign-off.
+    record_order(pending["po_number"], pending)
     return {"state": "completed", "artifact": pending}
 
 
